@@ -87,6 +87,8 @@ void test_large_matrix() {
     std::cout << "\n=== Test 2: Large Matrix (128x128 * 128x128) ===" << std::endl;
     
     SystolicConfig config(16, 16);  // 16x16 脉动阵列
+    // show progress every 8 tiles to give user feedback for large runs
+    config.progress_interval = 8;
     SystolicArray array(config);
     
     int M = 128, K = 128, N = 128;
@@ -96,8 +98,9 @@ void test_large_matrix() {
     auto A = generate_random_matrix(M, K);
     auto B = generate_random_matrix(K, N);
     
-    print_matrix(A, M, K, "Matrix A");
-    print_matrix(B, K, N, "Matrix B");
+    // Suppress large matrix prints to speed up the test
+    // print_matrix(A, M, K, "Matrix A");
+    // print_matrix(B, K, N, "Matrix B");
     
     std::vector<int32_t> C;
     
@@ -216,9 +219,9 @@ int main() {
     
     // 运行测试
     test_small_matrix();
-    // test_large_matrix();
-    // test_dataflow_modes();
-    // test_scaling();
+    test_large_matrix();
+    test_dataflow_modes();
+    test_scaling();
     
     std::cout << "\n=== All Tests Completed ===" << std::endl;
     

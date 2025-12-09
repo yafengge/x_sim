@@ -26,7 +26,13 @@ struct SystolicConfig {
     SystolicConfig(int r=8, int c=8) : 
         array_rows(r), array_cols(c), pe_latency(1), 
         memory_latency(10), bandwidth(4), 
+        progress_interval(0), verbose(false),
         dataflow(WEIGHT_STATIONARY) {}
+
+    // If >0, print a progress update every this many tiles
+    int progress_interval;
+    // Verbose printing flag
+    bool verbose;
 };
 
 #endif // SYSTOLIC_COMMON_H

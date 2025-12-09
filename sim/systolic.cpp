@@ -35,6 +35,12 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
 
     C.assign(M * N, 0);
 
+    // 计数总 tile 数以便显示进度
+    int tiles_total = ((M + config.array_rows - 1) / config.array_rows) *
+                      ((N + config.array_cols - 1) / config.array_cols) *
+                      ((K + config.array_cols - 1) / config.array_cols);
+    int tiles_done = 0;
+
     // 分块仿真：对每个 tile 做 cycle-accurate 的 systolic 仿真（A 从左注入，B 从上注入）
     for (int mb = 0; mb < M; mb += config.array_rows) {
         int m_tile = std::min(config.array_rows, M - mb);
@@ -90,21 +96,23 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
                 if (waited >= max_wait) std::cerr << "Warning: tile preload timeout" << std::endl;
 
                 // 进行仿真处理周期：从本地 FIFOs 逐周期 pop 并 shift-then-mac
+                // 为减少开销：预分配可重用的缓冲并按需清零
+                std::vector<DataType> left_in(m_tile, 0);
+                std::vector<DataType> top_in(n_tile, 0);
+                std::vector<std::vector<DataType>> next_act(m_tile, std::vector<DataType>(n_tile, 0));
+                std::vector<std::vector<DataType>> next_wt(m_tile, std::vector<DataType>(n_tile, 0));
+                std::vector<std::vector<AccType>> next_acc(m_tile, std::vector<AccType>(n_tile, 0));
 
                 for (int t = 0; t < total_cycles; t++) {
                     // 本周期根据经典注入时序决定哪些行/列需要从本地 FIFO pop
-                    // 当且仅当 (t - i) 在 [0, k_tile) 时，行 i 需要为当前 kk = t-i 注入 A
-                    std::vector<DataType> left_in(m_tile, 0);
-                    std::vector<DataType> top_in(n_tile, 0);
+                    for (int i = 0; i < m_tile; ++i) left_in[i] = 0;
+                    for (int j = 0; j < n_tile; ++j) top_in[j] = 0;
 
                     for (int i = 0; i < m_tile; ++i) {
                         int kk_required = t - i;
                         if (kk_required >= 0 && kk_required < k_tile) {
                             DataType v;
                             if (localA[i].pop(v)) left_in[i] = v;
-                            else left_in[i] = 0;
-                        } else {
-                            left_in[i] = 0;
                         }
                     }
                     for (int j = 0; j < n_tile; ++j) {
@@ -112,16 +120,17 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
                         if (kk_required >= 0 && kk_required < k_tile) {
                             DataType v;
                             if (localB[j].pop(v)) top_in[j] = v;
-                            else top_in[j] = 0;
-                        } else {
-                            top_in[j] = 0;
                         }
                     }
 
-                    // 计算下一个状态（基于 shift-then-mac 模型）
-                    std::vector<std::vector<DataType>> next_act(m_tile, std::vector<DataType>(n_tile, 0));
-                    std::vector<std::vector<DataType>> next_wt(m_tile, std::vector<DataType>(n_tile, 0));
-                    std::vector<std::vector<AccType>> next_acc(m_tile, std::vector<AccType>(n_tile, 0));
+                    // 清零重用缓冲区
+                    for (int i = 0; i < m_tile; ++i) {
+                        for (int j = 0; j < n_tile; ++j) {
+                            next_act[i][j] = 0;
+                            next_wt[i][j] = 0;
+                            next_acc[i][j] = 0;
+                        }
+                    }
 
                     uint64_t macs_this_cycle = 0;
                     for (int i = 0; i < m_tile; ++i) {
@@ -158,6 +167,12 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
                         int idx = (mb + i) * N + (nb + j);
                         C[idx] += acc[i][j];
                     }
+                }
+                // 更新进度计数并按需打印
+                tiles_done++;
+                if (config.progress_interval > 0 && (tiles_done % config.progress_interval) == 0) {
+                    std::cout << "Completed " << tiles_done << " / " << tiles_total << " tiles (" \
+                              << (100.0 * tiles_done / tiles_total) << "%)" << std::endl;
                 }
             }
         }
