@@ -10,6 +10,8 @@ all: $(TARGET)
 
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
+	# Clean up object files after successful link to save space
+	rm -f $(OBJS)
 
 %.o: %.cpp systolic.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@

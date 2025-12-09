@@ -15,6 +15,8 @@ struct SystolicConfig {
     int pe_latency;      // PE计算延迟（周期）
     int memory_latency;  // 内存访问延迟
     int bandwidth;       // 带宽（字/周期）
+    int progress_interval; // If >0, print a progress update every this many tiles
+    bool verbose;          // Verbose printing flag
 
     // 数据流模式
     enum Dataflow {
@@ -28,11 +30,6 @@ struct SystolicConfig {
         memory_latency(10), bandwidth(4), 
         progress_interval(0), verbose(false),
         dataflow(WEIGHT_STATIONARY) {}
-
-    // If >0, print a progress update every this many tiles
-    int progress_interval;
-    // Verbose printing flag
-    bool verbose;
 };
 
 #endif // SYSTOLIC_COMMON_H
