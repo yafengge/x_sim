@@ -19,17 +19,19 @@ struct SystolicConfig {
     bool verbose;          // Verbose printing flag
 
     // 数据流模式
-    enum Dataflow {
+    enum class Dataflow {
         WEIGHT_STATIONARY,   // 权重固定（最常用）
         OUTPUT_STATIONARY,   // 输出固定
         INPUT_STATIONARY     // 输入固定
-    } dataflow;
+    };
+
+    Dataflow dataflow;
 
     SystolicConfig(int r=8, int c=8) : 
         array_rows(r), array_cols(c), pe_latency(1), 
         memory_latency(10), bandwidth(4), 
         progress_interval(0), verbose(false),
-        dataflow(WEIGHT_STATIONARY) {}
+        dataflow(Dataflow::WEIGHT_STATIONARY) {}
 };
 
 #endif // SYSTOLIC_COMMON_H

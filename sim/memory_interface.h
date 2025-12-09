@@ -4,6 +4,7 @@
 #include "systolic_common.h"
 #include "fifo.h"
 #include <vector>
+#include <memory>
 
 class MemoryInterface {
 private:
@@ -12,7 +13,7 @@ private:
     int bandwidth;
     struct Request {
         uint32_t addr;
-        FIFO* dest; // 目标 FIFO，当请求完成时将数据 push 到该 FIFO
+        std::weak_ptr<FIFO> dest; // 非拥有引用到目标 FIFO，当请求完成时将数据 push 到该 FIFO
         bool is_write;
         DataType write_data;
         int remaining_cycles;
@@ -23,7 +24,7 @@ public:
     MemoryInterface(int size_kb, int lat, int bw);
 
     // 向 memory 发起读请求，完成后数据会被 push 到 dest FIFO（遵守 FIFO 深度）
-    bool read_request(uint32_t addr, FIFO* dest);
+    bool read_request(uint32_t addr, std::shared_ptr<FIFO> dest);
     bool write_request(uint32_t addr, DataType data);
 
     void cycle();  // 每个周期调用

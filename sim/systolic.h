@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <iomanip>
+#include <memory>
 
 #include "systolic_common.h"
 #include "processing_element.h"
@@ -16,23 +17,23 @@ private:
     SystolicConfig config;
     std::vector<std::vector<ProcessingElement>> pes;
 
-    // 输入/输出FIFO
-    FIFO weight_fifo;
-    FIFO activation_fifo;
-    FIFO output_fifo;
+    // 输入/输出FIFO（使用 shared_ptr 管理，以便 memory 请求可以持有非拥有引用）
+    std::shared_ptr<FIFO> weight_fifo;
+    std::shared_ptr<FIFO> activation_fifo;
+    std::shared_ptr<FIFO> output_fifo;
 
-    // 内存接口
-    MemoryInterface* memory;
+    // 内存接口（独占所有权）
+    std::unique_ptr<MemoryInterface> memory;
     
     // 控制器状态机
-    enum State {
+    enum class State {
         IDLE,
         LOADING_WEIGHTS,
         PROCESSING,
         UNLOADING_RESULTS,
         DONE
     };
-    
+
     State current_state;
     Cycle current_cycle;
     

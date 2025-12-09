@@ -59,11 +59,11 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
                 // 计算仿真所需的安全周期数（包含 memory latency 以便数据能到达 FIFO）
                 int total_cycles = k_tile + m_tile + n_tile + config.memory_latency;
 
-                // 为本 tile 创建每行/每列的本地 FIFO，以便精确把数据注入到对应行/列
-                std::vector<FIFO> localA;
-                std::vector<FIFO> localB;
-                for (int i = 0; i < m_tile; ++i) localA.emplace_back(k_tile + 4);
-                for (int j = 0; j < n_tile; ++j) localB.emplace_back(k_tile + 4);
+                // 为本 tile 创建每行/每列的本地 FIFO（shared_ptr），以便精确把数据注入到对应行/列
+                std::vector<std::shared_ptr<FIFO>> localA;
+                std::vector<std::shared_ptr<FIFO>> localB;
+                for (int i = 0; i < m_tile; ++i) localA.push_back(std::make_shared<FIFO>(k_tile + 4));
+                for (int j = 0; j < n_tile; ++j) localB.push_back(std::make_shared<FIFO>(k_tile + 4));
 
                 // 预加载 A 和 B 到 memory 模型中（A base = 0, B base = A.size()）
                 memory->load_data(A, 0);
@@ -74,11 +74,11 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
                     int k_idx = kb + kk;
                     for (int i = 0; i < m_tile; ++i) {
                         uint32_t addrA = static_cast<uint32_t>((mb + i) * A_cols + (kb + kk));
-                        memory->read_request(addrA, &localA[i]);
+                        memory->read_request(addrA, localA[i]);
                     }
                     for (int j = 0; j < n_tile; ++j) {
                         uint32_t addrB = static_cast<uint32_t>((k_idx) * B_cols + (nb + j) + static_cast<uint32_t>(A.size()));
-                        memory->read_request(addrB, &localB[j]);
+                        memory->read_request(addrB, localB[j]);
                     }
                 }
 
@@ -87,8 +87,8 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
                 int waited = 0;
                 while (waited < max_wait) {
                     bool ready = true;
-                    for (int i = 0; i < m_tile; ++i) if (localA[i].count < k_tile) { ready = false; break; }
-                    for (int j = 0; j < n_tile && ready; ++j) if (localB[j].count < k_tile) { ready = false; break; }
+                    for (int i = 0; i < m_tile; ++i) if (localA[i]->count < k_tile) { ready = false; break; }
+                    for (int j = 0; j < n_tile && ready; ++j) if (localB[j]->count < k_tile) { ready = false; break; }
                     if (ready) break;
                     memory->cycle();
                     stats.total_cycles++; stats.memory_stall_cycles++; current_cycle++; waited++;
@@ -112,14 +112,14 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
                         int kk_required = t - i;
                         if (kk_required >= 0 && kk_required < k_tile) {
                             DataType v;
-                            if (localA[i].pop(v)) left_in[i] = v;
+                            if (localA[i]->pop(v)) left_in[i] = v;
                         }
                     }
                     for (int j = 0; j < n_tile; ++j) {
                         int kk_required = t - j;
                         if (kk_required >= 0 && kk_required < k_tile) {
                             DataType v;
-                            if (localB[j].pop(v)) top_in[j] = v;
+                            if (localB[j]->pop(v)) top_in[j] = v;
                         }
                     }
 
@@ -178,7 +178,7 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
         }
     }
 
-    current_state = DONE;
+    current_state = State::DONE;
     std::cout << "Matrix multiplication completed in " << current_cycle 
               << " cycles" << std::endl;
 
@@ -196,18 +196,18 @@ void SystolicArray::cycle() {
     
     // 根据状态执行不同操作
     switch (current_state) {
-        case IDLE:
+        case State::IDLE:
             // 等待任务
             break;
             
-        case LOADING_WEIGHTS:
+        case State::LOADING_WEIGHTS:
             // 修正5: 正确的权重加载逻辑
-            if (!weight_fifo.empty()) {
+            if (!weight_fifo->empty()) {
                 // 每个周期尝试为每一列加载一个权重（如果可用），
                 // 并将该权重广播到该列的所有行（B 中同一列的权重对所有行相同）
                 for (int j = 0; j < config.array_cols; j++) {
                     DataType weight;
-                    if (weight_fifo.pop(weight)) {
+                    if (weight_fifo->pop(weight)) {
                         for (int i = 0; i < config.array_rows; i++) {
                             pes[i][j].load_weight(weight);
                         }
@@ -218,7 +218,7 @@ void SystolicArray::cycle() {
             }
             break;
             
-        case PROCESSING: {
+        case State::PROCESSING: {
             // 创建临时缓冲区存储输出
             std::vector<std::vector<DataType>> next_act_out(config.array_rows, 
                                                           std::vector<DataType>(config.array_cols, 0));
@@ -238,8 +238,8 @@ void SystolicArray::cycle() {
                     // 获取输入：激活来自左边，部分和来自上面（均使用本周期开始时的状态）
                     if (j > 0) {
                         act_in = pes[i][j-1].get_activation();
-                    } else if (!activation_fifo.empty()) {
-                        activation_fifo.pop(act_in);
+                    } else if (!activation_fifo->empty()) {
+                        activation_fifo->pop(act_in);
                     }
 
                     if (i > 0) {
@@ -282,18 +282,18 @@ void SystolicArray::cycle() {
 
             // 将收集到的输出推入 output_fifo（按注入顺序）
             for (DataType v : outputs_collected) {
-                output_fifo.push(v);
+                output_fifo->push(v);
             }
             
             stats.compute_cycles++;
             break;
         }
             
-        case UNLOADING_RESULTS:
+        case State::UNLOADING_RESULTS:
             // 结果已经在计算时收集
             break;
             
-        case DONE:
+        case State::DONE:
             break;
     }
     
@@ -310,10 +310,13 @@ void SystolicArray::cycle() {
 
 // ==================== SystolicArray 核心实现 ====================
 SystolicArray::SystolicArray(const SystolicConfig& cfg) 
-    : config(cfg), weight_fifo(16), activation_fifo(16), output_fifo(16),
-      current_state(IDLE), current_cycle(0), weight_load_ptr(0),
-      activation_load_ptr(0), result_unload_ptr(0), rows_processed(0),
-      cols_processed(0) {
+        : config(cfg),
+            weight_fifo(std::make_shared<FIFO>(16)),
+            activation_fifo(std::make_shared<FIFO>(16)),
+            output_fifo(std::make_shared<FIFO>(16)),
+            current_state(State::IDLE), current_cycle(0), weight_load_ptr(0),
+            activation_load_ptr(0), result_unload_ptr(0), rows_processed(0),
+            cols_processed(0) {
     
     // 初始化PE阵列
     pes.resize(config.array_rows);
@@ -324,16 +327,14 @@ SystolicArray::SystolicArray(const SystolicConfig& cfg)
         }
     }
     
-    // 初始化内存接口
-    memory = new MemoryInterface(64, config.memory_latency, config.bandwidth);
+    // 初始化内存接口（使用 unique_ptr）
+    memory = std::unique_ptr<MemoryInterface>(new MemoryInterface(64, config.memory_latency, config.bandwidth));
     
     // 重置统计
     stats = {0, 0, 0, 0, 0};
 }
 
-SystolicArray::~SystolicArray() {
-    delete memory;
-}
+SystolicArray::~SystolicArray() = default;
 
 void SystolicArray::reset() {
     for (int i = 0; i < config.array_rows; i++) {
@@ -342,23 +343,23 @@ void SystolicArray::reset() {
         }
     }
     
-    current_state = IDLE;
+    current_state = State::IDLE;
     current_cycle = 0;
     weight_load_ptr = activation_load_ptr = result_unload_ptr = 0;
     rows_processed = cols_processed = 0;
     
     // 清空FIFO
-    while (!weight_fifo.empty()) {
+    while (!weight_fifo->empty()) {
         DataType dummy;
-        weight_fifo.pop(dummy);
+        weight_fifo->pop(dummy);
     }
-    while (!activation_fifo.empty()) {
+    while (!activation_fifo->empty()) {
         DataType dummy;
-        activation_fifo.pop(dummy);
+        activation_fifo->pop(dummy);
     }
-    while (!output_fifo.empty()) {
+    while (!output_fifo->empty()) {
         DataType dummy;
-        output_fifo.pop(dummy);
+        output_fifo->pop(dummy);
     }
 }
 

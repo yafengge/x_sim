@@ -169,7 +169,7 @@ void test_dataflow_modes() {
     {
         std::cout << "\n1. Weight Stationary Mode:" << std::endl;
         SystolicConfig config(8, 8);
-        config.dataflow = SystolicConfig::WEIGHT_STATIONARY;
+        config.dataflow = SystolicConfig::Dataflow::WEIGHT_STATIONARY;
         SystolicArray array(config);
         
         std::vector<int32_t> C;

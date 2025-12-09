@@ -1,5 +1,6 @@
 #include "memory_interface.h"
 #include <cstddef>
+#include <memory>
 
 MemoryInterface::MemoryInterface(int size_kb, int lat, int bw)
     : latency(lat), bandwidth(bw) {
@@ -7,11 +8,11 @@ MemoryInterface::MemoryInterface(int size_kb, int lat, int bw)
     memory.resize(size_kb);
 }
 
-bool MemoryInterface::read_request(uint32_t addr, FIFO* dest) {
+bool MemoryInterface::read_request(uint32_t addr, std::shared_ptr<FIFO> dest) {
     if (addr >= memory.size()) return false;
     Request req;
     req.addr = addr;
-    req.dest = dest;
+    req.dest = dest; // stored as weak_ptr
     req.is_write = false;
     req.remaining_cycles = latency;
     pending_requests.push_back(req);
@@ -22,7 +23,7 @@ bool MemoryInterface::write_request(uint32_t addr, DataType data) {
     if (addr >= memory.size()) return false;
     Request req;
     req.addr = addr;
-    req.dest = nullptr;
+    req.dest.reset();
     req.is_write = true;
     req.write_data = data;
     req.remaining_cycles = latency;
@@ -54,8 +55,9 @@ void MemoryInterface::cycle() {
             continue;
         } else {
             // 读请求：尝试将数据写入目标 FIFO，如果目标 FIFO 满则保留请求
-            if (it->dest && !it->dest->full()) {
-                it->dest->push(memory[it->addr]);
+            std::shared_ptr<FIFO> dest = it->dest.lock();
+            if (dest && !dest->full()) {
+                dest->push(memory[it->addr]);
                 it = pending_requests.erase(it);
                 completed_this_cycle++;
                 continue;
