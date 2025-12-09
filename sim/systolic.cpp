@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <cassert>
 #include <cmath>
+#include <map>
 
 // ==================== ProcessingElement 实现 ====================
 ProcessingElement::ProcessingElement(int x, int y) 
@@ -25,6 +26,84 @@ void ProcessingElement::load_weight(DataType w) {
     weight = w;
     weight_valid = true;
     active = true;
+}
+
+// ==================== MemoryInterface 实现 ====================
+SystolicArray::MemoryInterface::MemoryInterface(int size_kb, int lat, int bw)
+    : latency(lat), bandwidth(bw) {
+    // 简单地把 size_kb 解释为元素数量（而不是字节），以便测试时足够
+    memory.resize(size_kb);
+}
+
+bool SystolicArray::MemoryInterface::read_request(uint32_t addr, FIFO* dest) {
+    if (addr >= memory.size()) return false;
+    Request req;
+    req.addr = addr;
+    req.dest = dest;
+    req.is_write = false;
+    req.remaining_cycles = latency;
+    pending_requests.push_back(req);
+    return true;
+}
+
+bool SystolicArray::MemoryInterface::write_request(uint32_t addr, DataType data) {
+    if (addr >= memory.size()) return false;
+    Request req;
+    req.addr = addr;
+    req.dest = nullptr;
+    req.is_write = true;
+    req.write_data = data;
+    req.remaining_cycles = latency;
+    pending_requests.push_back(req);
+    return true;
+}
+
+void SystolicArray::MemoryInterface::cycle() {
+    // 遍历 pending_requests，减少 remaining_cycles；当到达 0 时尝试完成请求（受带宽限制）
+    // 我们尽量按队列顺序处理请求
+    int completed_this_cycle = 0;
+    for (auto it = pending_requests.begin(); it != pending_requests.end(); ) {
+        if (it->remaining_cycles > 0) {
+            it->remaining_cycles--;
+            ++it;
+            continue;
+        }
+
+        if (completed_this_cycle >= bandwidth) {
+            // 本周期带宽已满，保留请求到下一周期
+            ++it;
+            continue;
+        }
+
+        if (it->is_write) {
+            memory[it->addr] = it->write_data;
+            it = pending_requests.erase(it);
+            completed_this_cycle++;
+            continue;
+        } else {
+            // 读请求：尝试将数据写入目标 FIFO，如果目标 FIFO 满则保留请求
+            if (it->dest && !it->dest->full()) {
+                it->dest->push(memory[it->addr]);
+                it = pending_requests.erase(it);
+                completed_this_cycle++;
+                continue;
+            } else {
+                // FIFO 满或没有目标，保留
+                ++it;
+                continue;
+            }
+        }
+    }
+}
+
+void SystolicArray::MemoryInterface::load_data(const std::vector<DataType>& data, uint32_t offset) {
+    if (offset + data.size() > memory.size()) {
+        // 如果不足，扩展内存
+        memory.resize(offset + data.size());
+    }
+    for (size_t i = 0; i < data.size(); ++i) {
+        memory[offset + i] = data[i];
+    }
 }
 
 // 简单正确的矩阵乘法实现（用于验证和保证结果正确）
@@ -51,13 +130,132 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
     int K = A_cols;
 
     C.assign(M * N, 0);
-    for (int i = 0; i < M; ++i) {
-        for (int j = 0; j < N; ++j) {
-            AccType sum = 0;
-            for (int k = 0; k < K; ++k) {
-                sum += static_cast<AccType>(A[i * K + k]) * static_cast<AccType>(B[k * N + j]);
+
+    // 分块仿真：对每个 tile 做 cycle-accurate 的 systolic 仿真（A 从左注入，B 从上注入）
+    for (int mb = 0; mb < M; mb += config.array_rows) {
+        int m_tile = std::min(config.array_rows, M - mb);
+
+        for (int nb = 0; nb < N; nb += config.array_cols) {
+            int n_tile = std::min(config.array_cols, N - nb);
+
+            for (int kb = 0; kb < K; kb += config.array_cols) {
+                int k_tile = std::min(config.array_cols, K - kb);
+
+                // 本 tile 的本地寄存器：activation 在格子内向右移动，weight 向下移动，acc 为累加器
+                std::vector<std::vector<DataType>> act(m_tile, std::vector<DataType>(n_tile, 0));
+                std::vector<std::vector<DataType>> wt(m_tile, std::vector<DataType>(n_tile, 0));
+                std::vector<std::vector<AccType>> acc(m_tile, std::vector<AccType>(n_tile, 0));
+
+                // 计算仿真所需的安全周期数（包含 memory latency 以便数据能到达 FIFO）
+                int total_cycles = k_tile + m_tile + n_tile + config.memory_latency;
+
+                // 为本 tile 创建每行/每列的本地 FIFO，以便精确把数据注入到对应行/列
+                std::vector<FIFO> localA;
+                std::vector<FIFO> localB;
+                for (int i = 0; i < m_tile; ++i) localA.emplace_back(k_tile + 4);
+                for (int j = 0; j < n_tile; ++j) localB.emplace_back(k_tile + 4);
+
+                // 预加载 A 和 B 到 memory 模型中（A base = 0, B base = A.size()）
+                memory->load_data(A, 0);
+                memory->load_data(B, static_cast<uint32_t>(A.size()));
+
+                // 发起对本 tile 所需的所有读请求，目标直接是本地 FIFOs
+                for (int kk = 0; kk < k_tile; kk++) {
+                    int k_idx = kb + kk;
+                    for (int i = 0; i < m_tile; ++i) {
+                        uint32_t addrA = static_cast<uint32_t>((mb + i) * A_cols + (kb + kk));
+                        memory->read_request(addrA, &localA[i]);
+                    }
+                    for (int j = 0; j < n_tile; ++j) {
+                        uint32_t addrB = static_cast<uint32_t>((k_idx) * B_cols + (nb + j) + static_cast<uint32_t>(A.size()));
+                        memory->read_request(addrB, &localB[j]);
+                    }
+                }
+
+                // 等待本地 FIFOs 填满至少 k_tile 条数据（受 memory latency & bandwidth 影响）
+                int max_wait = 10000;
+                int waited = 0;
+                while (waited < max_wait) {
+                    bool ready = true;
+                    for (int i = 0; i < m_tile; ++i) if (localA[i].count < k_tile) { ready = false; break; }
+                    for (int j = 0; j < n_tile && ready; ++j) if (localB[j].count < k_tile) { ready = false; break; }
+                    if (ready) break;
+                    memory->cycle();
+                    stats.total_cycles++; stats.memory_stall_cycles++; current_cycle++; waited++;
+                }
+                if (waited >= max_wait) std::cerr << "Warning: tile preload timeout" << std::endl;
+
+                // 进行仿真处理周期：从本地 FIFOs 逐周期 pop 并 shift-then-mac
+
+                for (int t = 0; t < total_cycles; t++) {
+                    // 本周期根据经典注入时序决定哪些行/列需要从本地 FIFO pop
+                    // 当且仅当 (t - i) 在 [0, k_tile) 时，行 i 需要为当前 kk = t-i 注入 A
+                    std::vector<DataType> left_in(m_tile, 0);
+                    std::vector<DataType> top_in(n_tile, 0);
+
+                    for (int i = 0; i < m_tile; ++i) {
+                        int kk_required = t - i;
+                        if (kk_required >= 0 && kk_required < k_tile) {
+                            DataType v;
+                            if (localA[i].pop(v)) left_in[i] = v;
+                            else left_in[i] = 0;
+                        } else {
+                            left_in[i] = 0;
+                        }
+                    }
+                    for (int j = 0; j < n_tile; ++j) {
+                        int kk_required = t - j;
+                        if (kk_required >= 0 && kk_required < k_tile) {
+                            DataType v;
+                            if (localB[j].pop(v)) top_in[j] = v;
+                            else top_in[j] = 0;
+                        } else {
+                            top_in[j] = 0;
+                        }
+                    }
+
+                    // 计算下一个状态（基于 shift-then-mac 模型）
+                    std::vector<std::vector<DataType>> next_act(m_tile, std::vector<DataType>(n_tile, 0));
+                    std::vector<std::vector<DataType>> next_wt(m_tile, std::vector<DataType>(n_tile, 0));
+                    std::vector<std::vector<AccType>> next_acc(m_tile, std::vector<AccType>(n_tile, 0));
+
+                    uint64_t macs_this_cycle = 0;
+                    for (int i = 0; i < m_tile; ++i) {
+                        for (int j = 0; j < n_tile; ++j) {
+                            // shift: 激活右移，权重下移
+                            if (j == 0) next_act[i][j] = left_in[i];
+                            else next_act[i][j] = act[i][j-1];
+
+                            if (i == 0) next_wt[i][j] = top_in[j];
+                            else next_wt[i][j] = wt[i-1][j];
+
+                            // MAC
+                            AccType mac = static_cast<AccType>(next_act[i][j]) * static_cast<AccType>(next_wt[i][j]);
+                            next_acc[i][j] = acc[i][j] + mac;
+                            if (next_act[i][j] != 0 && next_wt[i][j] != 0) macs_this_cycle++;
+                        }
+                    }
+
+                    // 同步写回
+                    act.swap(next_act);
+                    wt.swap(next_wt);
+                    acc.swap(next_acc);
+
+                    // 更新统计周期
+                    stats.mac_operations += macs_this_cycle;
+                    stats.total_cycles++;
+                    stats.compute_cycles++;
+                    current_cycle++;
+                }
+
+                // 把 tile 的累加器写回 C
+                for (int i = 0; i < m_tile; ++i) {
+                    for (int j = 0; j < n_tile; ++j) {
+                        int idx = (mb + i) * N + (nb + j);
+                        C[idx] += acc[i][j];
+                    }
+                }
             }
-            C[i * N + j] = sum;
         }
     }
 
@@ -350,58 +548,4 @@ bool SystolicArray::verify_result(const std::vector<DataType>& A, int A_rows, in
     }
 }
 
-// ==================== MemoryInterface 实现 ====================
-SystolicArray::MemoryInterface::MemoryInterface(int size_kb, int lat, int bw) 
-    : latency(lat), bandwidth(bw) {
-    memory.resize(size_kb * 1024 / sizeof(DataType), 0);
-}
-
-bool SystolicArray::MemoryInterface::read_request(uint32_t addr, DataType* data) {
-    if (pending_requests.size() >= static_cast<size_t>(bandwidth)) {
-        return false;  // 带宽限制
-    }
-    
-    Request req = {addr, data, false, latency};
-    pending_requests.push_back(req);
-    return true;
-}
-
-bool SystolicArray::MemoryInterface::write_request(uint32_t addr, DataType data) {
-    if (pending_requests.size() >= static_cast<size_t>(bandwidth)) {
-        return false;
-    }
-    
-    Request req = {addr, nullptr, true, latency};
-    if (req.data) {
-        *req.data = data;
-    }
-    pending_requests.push_back(req);
-    return true;
-}
-
-void SystolicArray::MemoryInterface::cycle() {
-    // 处理等待的请求
-    for (auto it = pending_requests.begin(); it != pending_requests.end();) {
-        it->remaining_cycles--;
-        
-        if (it->remaining_cycles <= 0) {
-            // 请求完成
-            if (!it->is_write && it->data) {
-                // 读取数据
-                uint32_t idx = it->addr / sizeof(DataType);
-                if (idx < memory.size()) {
-                    *it->data = memory[idx];
-                }
-            } else if (it->is_write) {
-                // 写入数据
-                uint32_t idx = it->addr / sizeof(DataType);
-                if (idx < memory.size()) {
-                    // 注意：写入请求的数据在创建时已设置
-                }
-            }
-            it = pending_requests.erase(it);
-        } else {
-            ++it;
-        }
-    }
-}
+// (之前在文件顶部已实现 MemoryInterface)
