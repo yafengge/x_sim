@@ -50,9 +50,7 @@ private:
     } pipeline_reg;
     
 public:
-    ProcessingElement() : id_x(0), id_y(0) {
-        // 可选的初始化代码
-    }
+    ProcessingElement() = default;       
 
     ProcessingElement(int x, int y);
     
@@ -68,6 +66,11 @@ public:
     
     // 获取当前累加值
     AccType get_accumulator() const { return accumulator; }
+    // 激活值访问器（供外部PE间通信使用）
+    DataType get_activation() const { return activation; }
+    void set_activation(DataType act) { activation = act; }
+    // 累加器写入器（供外部PE间通信使用）
+    void set_accumulator(AccType acc) { accumulator = acc; }
     
     // PE状态查询
     bool is_active() const { return active; }
