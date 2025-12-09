@@ -6,105 +6,9 @@
 #include <cmath>
 #include <map>
 
-// ==================== ProcessingElement 实现 ====================
-ProcessingElement::ProcessingElement(int x, int y) 
-    : id_x(x), id_y(y), weight(0), activation(0), 
-      accumulator(0), weight_valid(false), active(false) {
-    reset();
-}
-
-void ProcessingElement::reset() {
-    weight = 0;
-    activation = 0;
-    accumulator = 0;
-    weight_valid = false;
-    active = false;
-    pipeline_reg.valid = false;
-}
-
-void ProcessingElement::load_weight(DataType w) {
-    weight = w;
-    weight_valid = true;
-    active = true;
-}
-
-// ==================== MemoryInterface 实现 ====================
-SystolicArray::MemoryInterface::MemoryInterface(int size_kb, int lat, int bw)
-    : latency(lat), bandwidth(bw) {
-    // 简单地把 size_kb 解释为元素数量（而不是字节），以便测试时足够
-    memory.resize(size_kb);
-}
-
-bool SystolicArray::MemoryInterface::read_request(uint32_t addr, FIFO* dest) {
-    if (addr >= memory.size()) return false;
-    Request req;
-    req.addr = addr;
-    req.dest = dest;
-    req.is_write = false;
-    req.remaining_cycles = latency;
-    pending_requests.push_back(req);
-    return true;
-}
-
-bool SystolicArray::MemoryInterface::write_request(uint32_t addr, DataType data) {
-    if (addr >= memory.size()) return false;
-    Request req;
-    req.addr = addr;
-    req.dest = nullptr;
-    req.is_write = true;
-    req.write_data = data;
-    req.remaining_cycles = latency;
-    pending_requests.push_back(req);
-    return true;
-}
-
-void SystolicArray::MemoryInterface::cycle() {
-    // 遍历 pending_requests，减少 remaining_cycles；当到达 0 时尝试完成请求（受带宽限制）
-    // 我们尽量按队列顺序处理请求
-    int completed_this_cycle = 0;
-    for (auto it = pending_requests.begin(); it != pending_requests.end(); ) {
-        if (it->remaining_cycles > 0) {
-            it->remaining_cycles--;
-            ++it;
-            continue;
-        }
-
-        if (completed_this_cycle >= bandwidth) {
-            // 本周期带宽已满，保留请求到下一周期
-            ++it;
-            continue;
-        }
-
-        if (it->is_write) {
-            memory[it->addr] = it->write_data;
-            it = pending_requests.erase(it);
-            completed_this_cycle++;
-            continue;
-        } else {
-            // 读请求：尝试将数据写入目标 FIFO，如果目标 FIFO 满则保留请求
-            if (it->dest && !it->dest->full()) {
-                it->dest->push(memory[it->addr]);
-                it = pending_requests.erase(it);
-                completed_this_cycle++;
-                continue;
-            } else {
-                // FIFO 满或没有目标，保留
-                ++it;
-                continue;
-            }
-        }
-    }
-}
-
-void SystolicArray::MemoryInterface::load_data(const std::vector<DataType>& data, uint32_t offset) {
-    if (offset + data.size() > memory.size()) {
-        // 如果不足，扩展内存
-        memory.resize(offset + data.size());
-    }
-    for (size_t i = 0; i < data.size(); ++i) {
-        memory[offset + i] = data[i];
-    }
-}
+// Implementations for ProcessingElement and MemoryInterface have been
+// moved to their respective compilation units: processing_element.cpp
+// and memory_interface.cpp
 
 // 简单正确的矩阵乘法实现（用于验证和保证结果正确）
 bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, int A_cols,
@@ -266,30 +170,7 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
     return true;
 }
 
-// 修正 PE 的 compute_cycle 函数
-void ProcessingElement::compute_cycle(DataType act_in, AccType psum_in,
-                                      DataType& act_out, AccType& psum_out) {
-    // 传递并转发激活值（右移）：当前周期应将输入激活向右传递
-    act_out = act_in;
-    activation = act_in;
-
-    // 正确的MAC计算：使用传入的激活值与本PE的权重相乘
-    AccType mac_result = 0;
-    if (weight_valid && activation != 0) {
-        mac_result = static_cast<AccType>(activation) * 
-                     static_cast<AccType>(weight);
-    }
-
-    // 计算新的部分和并返回给调用者（不在此直接写回累加器，
-    // 由上层在同步阶段一次性写回以保证时序一致性）
-    AccType new_psum = psum_in + mac_result;
-    psum_out = new_psum;
-
-    // 更新流水线寄存器
-    pipeline_reg.activation = act_in;
-    pipeline_reg.partial_sum = new_psum;
-    pipeline_reg.valid = (weight_valid && activation != 0);
-}
+// ProcessingElement methods implemented in processing_element.cpp
 
 // 修正 cycle 函数中的计算部分
 void SystolicArray::cycle() {
@@ -410,13 +291,7 @@ void SystolicArray::cycle() {
     current_cycle++;
 }
 
-void ProcessingElement::print_state() const {
-    std::cout << "PE(" << id_x << "," << id_y << "): "
-              << "W=" << weight << " A=" << activation 
-              << " ACC=" << accumulator 
-              << " " << (weight_valid ? "W" : "-")
-              << (active ? "A" : "-") << std::endl;
-}
+// ProcessingElement print_state implemented in processing_element.cpp
 
 // ==================== SystolicArray 核心实现 ====================
 SystolicArray::SystolicArray(const SystolicConfig& cfg) 

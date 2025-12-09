@@ -2,155 +2,26 @@
 #define SYSTOLIC_ARRAY_H
 
 #include <vector>
-#include <cstdint>
 #include <string>
 #include <iomanip>
 
-// 数据类型定义
-typedef int16_t DataType;      // 16位定点数
-typedef int32_t AccType;       // 32位累加器
-typedef uint64_t Cycle;        // 周期计数器
-
-// 脉动阵列配置
-struct SystolicConfig {
-    int array_rows;      // 阵列行数
-    int array_cols;      // 阵列列数
-    int pe_latency;      // PE计算延迟（周期）
-    int memory_latency;  // 内存访问延迟
-    int bandwidth;       // 带宽（字/周期）
-    
-    // 数据流模式
-    enum Dataflow {
-        WEIGHT_STATIONARY,   // 权重固定（最常用）
-        OUTPUT_STATIONARY,   // 输出固定
-        INPUT_STATIONARY     // 输入固定
-    } dataflow;
-    
-    SystolicConfig(int r=8, int c=8) : 
-        array_rows(r), array_cols(c), pe_latency(1), 
-        memory_latency(10), bandwidth(4), 
-        dataflow(WEIGHT_STATIONARY) {}
-};
-
-// 处理单元（PE）状态
-class ProcessingElement {
-private:
-    int id_x, id_y;           // PE坐标
-    DataType weight;          // 存储的权重
-    DataType activation;      // 当前激活值
-    AccType accumulator;      // 累加器
-    bool weight_valid;        // 权重是否有效
-    bool active;             // PE是否激活
-    
-    // 流水线寄存器
-    struct {
-        DataType activation;
-        AccType partial_sum;
-        bool valid;
-    } pipeline_reg;
-    
-public:
-    ProcessingElement() = default;       
-
-    ProcessingElement(int x, int y);
-    
-    // 重置PE
-    void reset();
-    
-    // 加载权重
-    void load_weight(DataType w);
-    
-    // 执行一个计算周期
-    void compute_cycle(DataType act_in, AccType psum_in,
-                       DataType& act_out, AccType& psum_out);
-    
-    // 获取当前累加值
-    AccType get_accumulator() const { return accumulator; }
-    // 激活值访问器（供外部PE间通信使用）
-    DataType get_activation() const { return activation; }
-    void set_activation(DataType act) { activation = act; }
-    // 累加器写入器（供外部PE间通信使用）
-    void set_accumulator(AccType acc) { accumulator = acc; }
-    
-    // PE状态查询
-    bool is_active() const { return active; }
-    bool has_weight() const { return weight_valid; }
-    
-    // 打印状态
-    void print_state() const;
-};
+#include "systolic_common.h"
+#include "processing_element.h"
+#include "fifo.h"
+#include "memory_interface.h"
 
 // 脉动阵列核心
 class SystolicArray {
 private:
     SystolicConfig config;
     std::vector<std::vector<ProcessingElement>> pes;
-    
+
     // 输入/输出FIFO
-    struct FIFO {
-        std::vector<DataType> buffer;
-        int depth;
-        int read_ptr, write_ptr;
-        int count;
-        
-        FIFO(int d) : depth(d), read_ptr(0), write_ptr(0), count(0) {
-            buffer.resize(d);
-        }
-        
-        bool push(DataType data) {
-            if (count >= depth) return false;
-            buffer[write_ptr] = data;
-            write_ptr = (write_ptr + 1) % depth;
-            count++;
-            return true;
-        }
-        
-        bool pop(DataType& data) {
-            if (count <= 0) return false;
-            data = buffer[read_ptr];
-            read_ptr = (read_ptr + 1) % depth;
-            count--;
-            return true;
-        }
-        
-        bool empty() const { return count == 0; }
-        bool full() const { return count >= depth; }
-    };
-    
-    // 数据队列
     FIFO weight_fifo;
     FIFO activation_fifo;
     FIFO output_fifo;
-    
+
     // 内存接口
-    class MemoryInterface {
-    private:
-        std::vector<DataType> memory;
-        int latency;
-        int bandwidth;
-        struct Request {
-            uint32_t addr;
-            // 目标 FIFO，当请求完成时将数据 push 到该 FIFO
-            struct FIFO* dest;
-            bool is_write;
-            DataType write_data;
-            int remaining_cycles;
-        };
-        std::vector<Request> pending_requests;
-        
-    public:
-        MemoryInterface(int size_kb, int lat, int bw);
-
-        // 向 memory 发起读请求，完成后数据会被 push 到 dest FIFO（遵守 FIFO 深度）
-        bool read_request(uint32_t addr, FIFO* dest);
-        bool write_request(uint32_t addr, DataType data);
-
-        void cycle();  // 每个周期调用
-        // 直接加载初始内存内容到内存模型（用于将 A/B 放入内存）
-        void load_data(const std::vector<DataType>& data, uint32_t offset = 0);
-        bool has_pending() const { return !pending_requests.empty(); }
-    };
-    
     MemoryInterface* memory;
     
     // 控制器状态机

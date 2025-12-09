@@ -3,7 +3,7 @@ CXXFLAGS = -std=c++11 -Wall -g -O0
 # 调试模式: CXXFLAGS = -std=c++11 -Wall -g -O0
 
 TARGET = systolic_sim
-SRCS = systolic.cpp main.cpp
+SRCS = systolic.cpp main.cpp processing_element.cpp memory_interface.cpp
 OBJS = $(SRCS:.cpp=.o)
 
 all: $(TARGET)
