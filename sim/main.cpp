@@ -142,7 +142,9 @@ void test_large_matrix() {
         }
         
         // 完整验证（可选，比较慢）
-        // bool full_correct = SystolicArray::verify_result(A, M, K, B, K, N, C);
+        bool full_correct = SystolicArray::verify_result(A, M, K, B, K, N, C);
+        if (full_correct) std::cout << "Full verification PASSED!" << std::endl;
+        else std::cout << "Full verification FAILED!" << std::endl;
         
         array.print_stats();
         
