@@ -366,7 +366,7 @@ void SystolicArray::cycle() {
 // PE print_state implemented in pe.cpp
 
 // ==================== SystolicArray 核心实现 ====================
-SystolicArray::SystolicArray(const SystolicConfig& cfg, std::shared_ptr<Clock> external_clock) 
+SystolicArray::SystolicArray(const SystolicConfig& cfg, std::shared_ptr<Clock> external_clock, std::shared_ptr<Mem> external_mem) 
         : config(cfg),
             weight_fifo(new FIFO(16)),
             activation_fifo(new FIFO(16)),
@@ -391,7 +391,11 @@ SystolicArray::SystolicArray(const SystolicConfig& cfg, std::shared_ptr<Clock> e
     int max_outstanding = config.max_outstanding > 0 ? config.max_outstanding : 0;
     int issue_bw = config.bandwidth;
     int complete_bw = config.bandwidth;
-    memory = std::unique_ptr<Mem>(new Mem(64, config.memory_latency, issue_bw, complete_bw, max_outstanding));
+    if (external_mem) {
+        memory = external_mem;
+    } else {
+        memory = std::make_shared<Mem>(64, config.memory_latency, issue_bw, complete_bw, max_outstanding);
+    }
     // 初始化/绑定时钟并将内存周期行为注册为监听器
     if (external_clock) {
         clock = external_clock;

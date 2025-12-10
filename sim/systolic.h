@@ -24,8 +24,8 @@ private:
     std::unique_ptr<FIFO> activation_fifo;
     std::unique_ptr<FIFO> output_fifo;
 
-    // 内存接口（独占所有权）
-    std::unique_ptr<Mem> memory;
+    // 内存接口（共享给外部驱动/SimTop）
+    std::shared_ptr<Mem> memory;
     
     // 控制器状态机
     enum class State {
@@ -92,7 +92,9 @@ private:
                       std::vector<AccType>& C, int N);
     
 public:
-    SystolicArray(const SystolicConfig& cfg, std::shared_ptr<Clock> external_clock = nullptr);
+    SystolicArray(const SystolicConfig& cfg,
+                  std::shared_ptr<Clock> external_clock = nullptr,
+                  std::shared_ptr<Mem> external_mem = nullptr);
     ~SystolicArray();
     
     // 重置阵列
@@ -118,6 +120,10 @@ public:
     // 调试功能
     void print_array_state() const;
     void enable_tracing(const std::string& filename);
+
+    // 访问内存模型（供封装层获取共享指针）
+    std::shared_ptr<Mem> get_memory() { return memory; }
+    std::shared_ptr<const Mem> get_memory() const { return memory; }
     
     // 验证功能
     static bool verify_result(const std::vector<DataType>& A, int A_rows, int A_cols,

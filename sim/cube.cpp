@@ -1,8 +1,12 @@
 #include "cube.h"
 
-Cube::Cube(const SystolicConfig& cfg, std::shared_ptr<Clock> external_clock)
+Cube::Cube(const SystolicConfig& cfg, std::shared_ptr<Clock> external_clock, std::shared_ptr<Mem> external_mem)
         : config_(cfg),
             clock_(external_clock ? external_clock : std::make_shared<Clock>()),
-            systolic_(config_, clock_) {
-        // Cube 顶层当前仅封装脉动阵列的初始化，后续可在此扩展更多子模块。
+            mem_(external_mem),
+            systolic_(config_, clock_, external_mem) {
+        // 若未传入外部内存，获取 SystolicArray 创建的内存实例以便外部访问
+        if (!mem_) {
+            mem_ = systolic_.get_memory();
+        }
 }
