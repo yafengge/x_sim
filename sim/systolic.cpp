@@ -394,7 +394,7 @@ SystolicArray::SystolicArray(const SysConfig& cfg, p_clock_t external_clock, p_m
     if (external_mem) {
         memory = external_mem;
     } else {
-        memory = std::make_shared<Mem>(64, config.memory_latency, issue_bw, complete_bw, max_outstanding, clock);
+        memory = p_mem_t(new Mem(64, config.memory_latency, issue_bw, complete_bw, max_outstanding, clock));
     }
     // 初始化/绑定时钟并将内存周期行为注册为监听器
     if (external_clock) {

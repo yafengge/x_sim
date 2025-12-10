@@ -42,7 +42,7 @@ p_mem_t SimTop::build_mem(const p_clock_t& clk) {
   int max_outstanding = cfg.max_outstanding > 0 ? cfg.max_outstanding : 0;
   int issue_bw = cfg.bandwidth;
   int complete_bw = cfg.bandwidth;
-  return std::make_shared<Mem>(64, cfg.memory_latency, issue_bw, complete_bw, max_outstanding, clk);
+  return p_mem_t(new Mem(64, cfg.memory_latency, issue_bw, complete_bw, max_outstanding, clk));
 }
 
 void SimTop::build_all() {
