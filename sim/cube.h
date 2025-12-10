@@ -9,12 +9,11 @@
 // Cube 作为顶层封装，负责初始化和持有各个子单元（当前为 SystolicArray）
 class Cube {
 public:
-    explicit Cube(const SysConfig& cfg,
+    explicit Cube(const std::string& config_path,
                   p_clock_t external_clock = nullptr,
                   p_mem_t external_mem = nullptr);
 
-    // 加载 cube 配置段
-    static bool load_config(const std::string& path, SysConfig& cfg, std::string* err = nullptr);
+    // (Configuration is read on-demand via per-key getters; no in-memory struct)
 
     // 外部可以驱动同一个时钟
     p_clock_t clock() { return clock_; }
@@ -29,10 +28,11 @@ public:
     p_mem_t memory() const { return mem_; }
 
     // 访问配置
-    const SysConfig& config() const { return config_; }
+    // Returns config path (file used for configuration)
+    const std::string& config_path() const { return config_path_; }
 
 private:
-    SysConfig config_;
+    std::string config_path_;
     p_clock_t clock_;
     p_mem_t mem_;
     SystolicArray systolic_;

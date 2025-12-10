@@ -16,7 +16,8 @@
 // 脉动阵列核心
 class SystolicArray {
 private:
-    SysConfig config;
+    // config_path_ is used for on-demand (no-cache) config reads
+    std::string config_path_;
     std::vector<std::vector<PE>> pes;
 
     // 输入/输出FIFO（独占所有权，由 SystolicArray 管理）
@@ -65,6 +66,21 @@ private:
     int result_unload_ptr;
     int rows_processed;
     int cols_processed;
+
+    // Cached configuration values (loaded once per SystolicArray instance)
+    int cfg_array_rows;
+    int cfg_array_cols;
+    int cfg_tile_rows;
+    int cfg_tile_cols;
+    int cfg_unroll;
+    int cfg_progress_interval;
+    int cfg_trace_cycles;
+    int cfg_pe_latency;
+    bool cfg_verbose;
+    Dataflow cfg_dataflow_cached;
+
+    // Load configuration values from file into cached members
+    void load_config_cache();
     
     // 控制函数
     void load_weights(const std::vector<DataType>& weights);
@@ -92,9 +108,14 @@ private:
                       std::vector<AccType>& C, int N);
     
 public:
-    SystolicArray(const SysConfig& cfg,
+    SystolicArray(const std::string& config_path,
                   p_clock_t external_clock = nullptr,
                   p_mem_t external_mem = nullptr);
+
+    // helpers that read configuration keys from config file (no caching)
+    int cfg_int(const std::string& key, int def) const;
+    bool cfg_bool(const std::string& key, bool def) const;
+    Dataflow cfg_dataflow(const std::string& key, Dataflow def) const;
     ~SystolicArray();
     
     // 重置阵列

@@ -19,9 +19,7 @@ Mem::Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_out, p_clo
     memory.resize(size_kb);
 }
 
-bool Mem::load_config(const std::string& path, SysConfig& cfg, std::string* err) {
-    return load_memory_config(path, cfg, err);
-}
+
 
 bool Mem::read_request(uint32_t addr, std::shared_ptr<std::deque<DataType>> completion_queue, size_t max_queue_depth, size_t len) {
     if (addr >= memory.size()) return false;

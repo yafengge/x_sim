@@ -41,8 +41,7 @@ public:
     Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_outstanding = -1,
         p_clock_t clock = nullptr);
 
-    // 加载 memory 配置段
-    static bool load_config(const std::string& path, SysConfig& cfg, std::string* err = nullptr);
+    // Configuration is read via per-key getters; struct-based API removed.
 
     // 向 memory 发起读请求，完成后数据会被 push 到 completion_queue（遵守 max_queue_depth）
     // completion_queue is non-owning; caller must ensure it lives until request completes
@@ -53,6 +52,8 @@ public:
     // 直接加载初始内存内容到内存模型（用于将 A/B 放入内存）
     void load_data(const std::vector<DataType>& data, uint32_t offset = 0);
     bool has_pending() const { return !pending_requests.empty(); }
+    // Expose configured latency for callers
+    int get_latency() const { return latency; }
 };
 
 #endif // MEMORY_INTERFACE_H
