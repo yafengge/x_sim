@@ -1,4 +1,5 @@
 #include "systolic.h"
+#include "cube.h"
 #include <iostream>
 #include <vector>
 #include <random>
@@ -43,7 +44,8 @@ void test_small_matrix() {
     SystolicConfig config(4, 4);
     config.verbose = g_verbose;
     config.trace_cycles = g_trace_cycles;
-    SystolicArray array(config);
+    Cube cube(config);
+    auto &array = cube.array();
     
     // 定义测试矩阵
     std::vector<int16_t> A = {
@@ -102,7 +104,8 @@ void test_large_matrix(bool quick=false) {
     config.trace_cycles = g_trace_cycles;
     // show progress every 8 tiles to give user feedback for large runs
     config.progress_interval = quick ? 0 : 8;
-    SystolicArray array(config);
+    Cube cube(config);
+    auto &array = cube.array();
     
     // 生成随机矩阵
     std::cout << "Generating random matrices..." << std::endl;
@@ -189,7 +192,8 @@ void test_dataflow_modes(bool quick=false) {
         config.verbose = g_verbose;
         config.trace_cycles = g_trace_cycles;
         config.dataflow = SystolicConfig::Dataflow::WEIGHT_STATIONARY;
-        SystolicArray array(config);
+        Cube cube(config);
+        auto &array = cube.array();
         
         std::vector<int32_t> C;
         auto start = std::chrono::high_resolution_clock::now();
@@ -222,7 +226,8 @@ void test_scaling(bool quick=false) {
         SystolicConfig config(size, size);
         config.verbose = g_verbose;
         config.trace_cycles = g_trace_cycles;
-        SystolicArray array(config);
+        Cube cube(config);
+        auto &array = cube.array();
         
         std::vector<int32_t> C;
         auto start = std::chrono::high_resolution_clock::now();

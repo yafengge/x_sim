@@ -39,7 +39,7 @@ private:
     State current_state;
     Cycle current_cycle;
     // global clock for the array; components may register listeners
-    std::unique_ptr<Clock> clock;
+    std::shared_ptr<Clock> clock;
     // listener ids registered with clock (if any)
     std::size_t mem_listener_id;
     std::size_t sa_listener_id;
@@ -92,7 +92,7 @@ private:
                       std::vector<AccType>& C, int N);
     
 public:
-    SystolicArray(const SystolicConfig& cfg);
+    SystolicArray(const SystolicConfig& cfg, std::shared_ptr<Clock> external_clock = nullptr);
     ~SystolicArray();
     
     // 重置阵列

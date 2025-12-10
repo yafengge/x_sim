@@ -366,7 +366,7 @@ void SystolicArray::cycle() {
 // ProcessingElement print_state implemented in processing_element.cpp
 
 // ==================== SystolicArray 核心实现 ====================
-SystolicArray::SystolicArray(const SystolicConfig& cfg) 
+SystolicArray::SystolicArray(const SystolicConfig& cfg, std::shared_ptr<Clock> external_clock) 
         : config(cfg),
             weight_fifo(new FIFO(16)),
             activation_fifo(new FIFO(16)),
@@ -392,8 +392,12 @@ SystolicArray::SystolicArray(const SystolicConfig& cfg)
     int issue_bw = config.bandwidth;
     int complete_bw = config.bandwidth;
     memory = std::unique_ptr<MemoryInterface>(new MemoryInterface(64, config.memory_latency, issue_bw, complete_bw, max_outstanding));
-    // 初始化时钟并将内存周期行为注册为监听器
-    clock = std::unique_ptr<Clock>(new Clock());
+    // 初始化/绑定时钟并将内存周期行为注册为监听器
+    if (external_clock) {
+        clock = external_clock;
+    } else {
+        clock = std::make_shared<Clock>();
+    }
     // register memory cycle at highest priority (0)
     mem_listener_id = clock->add_listener([this]() {
         if (memory) memory->cycle();
