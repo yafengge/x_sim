@@ -1,11 +1,13 @@
 #ifndef MEMORY_INTERFACE_H
 #define MEMORY_INTERFACE_H
 
+#include <deque>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "systolic_common.h"
 #include "fifo.h"
-#include <vector>
-#include <memory>
-#include <deque>
 
 class Clock;
 
@@ -38,6 +40,9 @@ private:
 public:
     Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_outstanding = -1,
         std::shared_ptr<Clock> clock = nullptr);
+
+    // 加载 memory 配置段
+    static bool load_config(const std::string& path, SystolicConfig& cfg, std::string* err = nullptr);
 
     // 向 memory 发起读请求，完成后数据会被 push 到 completion_queue（遵守 max_queue_depth）
     // completion_queue is non-owning; caller must ensure it lives until request completes

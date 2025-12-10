@@ -1,12 +1,16 @@
 # Default configuration for Systolic simulator
+
+[cube]
 array_rows = 8
 array_cols = 8
 pe_latency = 1
-memory_latency = 10
-bandwidth = 4
 progress_interval = 0
 verbose = false
 trace_cycles = 0
-max_outstanding = 0
 # dataflow options: WEIGHT_STATIONARY, OUTPUT_STATIONARY, INPUT_STATIONARY
 dataflow = "WEIGHT_STATIONARY"
+
+[memory]
+memory_latency = 10
+bandwidth = 4
+max_outstanding = 0

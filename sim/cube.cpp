@@ -1,4 +1,5 @@
 #include "cube.h"
+#include "config_loader.h"
 
 Cube::Cube(const SystolicConfig& cfg, std::shared_ptr<Clock> external_clock, std::shared_ptr<Mem> external_mem)
         : config_(cfg),
@@ -9,4 +10,8 @@ Cube::Cube(const SystolicConfig& cfg, std::shared_ptr<Clock> external_clock, std
         if (!mem_) {
             mem_ = systolic_.get_memory();
         }
+}
+
+bool Cube::load_config(const std::string& path, SystolicConfig& cfg, std::string* err) {
+    return load_cube_config(path, cfg, err);
 }

@@ -1,4 +1,6 @@
 #include "mem_if.h"
+#include "config_loader.h"
+
 #include <cstddef>
 #include <memory>
 
@@ -15,6 +17,10 @@ Mem::Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_out, std::
     }
     // 简单地把 size_kb 解释为元素数量（而不是字节），以便测试时足够
     memory.resize(size_kb);
+}
+
+bool Mem::load_config(const std::string& path, SystolicConfig& cfg, std::string* err) {
+    return load_memory_config(path, cfg, err);
 }
 
 bool Mem::read_request(uint32_t addr, std::shared_ptr<std::deque<DataType>> completion_queue, size_t max_queue_depth, size_t len) {

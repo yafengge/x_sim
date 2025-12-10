@@ -1,6 +1,8 @@
 #ifndef CUBE_TOP_H
 #define CUBE_TOP_H
 
+#include <string>
+
 #include "systolic.h"
 #include "clock.h"
 
@@ -10,6 +12,9 @@ public:
     explicit Cube(const SystolicConfig& cfg,
                   std::shared_ptr<Clock> external_clock = nullptr,
                   std::shared_ptr<Mem> external_mem = nullptr);
+
+    // 加载 cube 配置段
+    static bool load_config(const std::string& path, SystolicConfig& cfg, std::string* err = nullptr);
 
     // 外部可以驱动同一个时钟
     std::shared_ptr<Clock> clock() { return clock_; }

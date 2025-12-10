@@ -6,16 +6,20 @@
 #include "cube.h"
 #include "clock.h"
 #include "mem_if.h"
+#include "config_loader.h"
 
 // SimTop 封装顶层构建：clock、memory、cube，提供 build_* 接口便于模块化
 class SimTop {
 public:
+    explicit SimTop(const std::string& config_path = "config.toml");
     explicit SimTop(const SystolicConfig& cfg);
 
     // 分步构建接口（build_all 创建 clock/mem 后传给 build_cube）
     Cube& build_cube(const std::shared_ptr<Clock>& clk,
-                     const std::shared_ptr<Mem>& mem);
+                     const std::shared_ptr<Mem>& mem,
+                     const SystolicConfig& cfg);
     void build_all();
+    void build_all(const SystolicConfig& cfg);
 
     // 访问器
     std::shared_ptr<Clock> clock() { return cube_ ? cube_->clock() : nullptr; }
@@ -33,7 +37,8 @@ public:
     const SystolicConfig& config() const { return config_; }
 
 private:
-    SystolicConfig config_;
+    SystolicConfig config_{};
+    std::string config_path_;
     std::unique_ptr<Cube> cube_;
 };
 
