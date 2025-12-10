@@ -55,9 +55,3 @@ void SimTop::build_all() {
   auto mem = build_mem(clk);
   build_cube(clk, mem);
 }
-
-void SimTop::build_all(const SystolicConfig& cfg) {
-  auto clk = std::make_shared<Clock>();
-  auto mem = build_mem(clk, cfg);
-  build_cube(clk, mem, cfg);
-}

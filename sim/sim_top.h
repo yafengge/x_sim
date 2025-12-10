@@ -24,7 +24,6 @@ public:
                      const std::shared_ptr<Mem>& mem,
                      const SystolicConfig& cfg);
     void build_all();
-    void build_all(const SystolicConfig& cfg);
 
     // 访问器
     std::shared_ptr<Clock> clock() { return cube_ ? cube_->clock() : nullptr; }
