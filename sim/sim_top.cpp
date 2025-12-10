@@ -22,7 +22,7 @@ p_cube_t SimTop::build_cube(const p_clock_t& clk,
     if (!err.empty()) {
       std::cerr << "Cube config load warning: " << err << "\n";
     }
-    cube_ = std::make_shared<Cube>(cfg, clk, mem);
+    cube_ = p_cube_t(new Cube(cfg, clk, mem));
   }
   return cube_;
 }
