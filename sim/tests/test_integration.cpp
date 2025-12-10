@@ -46,55 +46,55 @@ TEST(Integration, QuickLarge) {
     EXPECT_TRUE(cube->verify_result(A_block,4,K,B_block,K,4,C_block));
 }
 
-// Slow / extended tests (disabled by default). Prefix with DISABLED_ so they
-// only run when explicitly enabled (e.g. via --gtest_filter or removing DISABLED_)
-TEST(Integration, DISABLED_DataflowModes) {
-    std::string cfg = "int_df_config.toml";
-    int M = 64, K = 64, N = 64;
-    auto A = generate_random_matrix(M,K);
-    auto B = generate_random_matrix(K,N);
+// // Slow / extended tests (disabled by default). Prefix with DISABLED_ so they
+// // only run when explicitly enabled (e.g. via --gtest_filter or removing DISABLED_)
+// TEST(Integration, DISABLED_DataflowModes) {
+//     std::string cfg = "int_df_config.toml";
+//     int M = 64, K = 64, N = 64;
+//     auto A = generate_random_matrix(M,K);
+//     auto B = generate_random_matrix(K,N);
 
-    // Weight stationary
-    write_config_file(cfg, 8, 8);
-    AIC aic_w(cfg);
-    auto cube_w = aic_w.get_cube();
-    std::vector<int32_t> Cw;
-    ASSERT_TRUE(cube_w->matmul(A, M, K, B, K, N, Cw));
+//     // Weight stationary
+//     write_config_file(cfg, 8, 8);
+//     AIC aic_w(cfg);
+//     auto cube_w = aic_w.get_cube();
+//     std::vector<int32_t> Cw;
+//     ASSERT_TRUE(cube_w->matmul(A, M, K, B, K, N, Cw));
 
-    // Output stationary
-    // write different config (dataflow handled via config_mgr if supported)
-    std::ofstream out(cfg);
-    out << "[cube]\narray_rows = 8\narray_cols = 8\nverbose = false\nprogress_interval = 0\ndataflow = \"OUTPUT_STATIONARY\"\n";
-    out.close();
-    AIC aic_o(cfg);
-    auto cube_o = aic_o.get_cube();
-    std::vector<int32_t> Co;
-    ASSERT_TRUE(cube_o->matmul(A, M, K, B, K, N, Co));
+//     // Output stationary
+//     // write different config (dataflow handled via config_mgr if supported)
+//     std::ofstream out(cfg);
+//     out << "[cube]\narray_rows = 8\narray_cols = 8\nverbose = false\nprogress_interval = 0\ndataflow = \"OUTPUT_STATIONARY\"\n";
+//     out.close();
+//     AIC aic_o(cfg);
+//     auto cube_o = aic_o.get_cube();
+//     std::vector<int32_t> Co;
+//     ASSERT_TRUE(cube_o->matmul(A, M, K, B, K, N, Co));
 
-    // Input stationary
-    std::ofstream out2(cfg);
-    out2 << "[cube]\narray_rows = 8\narray_cols = 8\nverbose = false\nprogress_interval = 0\ndataflow = \"INPUT_STATIONARY\"\n";
-    out2.close();
-    AIC aic_i(cfg);
-    auto cube_i = aic_i.get_cube();
-    std::vector<int32_t> Ci;
-    ASSERT_TRUE(cube_i->matmul(A, M, K, B, K, N, Ci));
-}
+//     // Input stationary
+//     std::ofstream out2(cfg);
+//     out2 << "[cube]\narray_rows = 8\narray_cols = 8\nverbose = false\nprogress_interval = 0\ndataflow = \"INPUT_STATIONARY\"\n";
+//     out2.close();
+//     AIC aic_i(cfg);
+//     auto cube_i = aic_i.get_cube();
+//     std::vector<int32_t> Ci;
+//     ASSERT_TRUE(cube_i->matmul(A, M, K, B, K, N, Ci));
+// }
 
-TEST(Integration, DISABLED_Scaling) {
-    std::string cfg = "int_scale_config.toml";
-    int M = 256, K = 256, N = 256;
-    auto A = generate_random_matrix(M,K);
-    auto B = generate_random_matrix(K,N);
+// TEST(Integration, DISABLED_Scaling) {
+//     std::string cfg = "int_scale_config.toml";
+//     int M = 256, K = 256, N = 256;
+//     auto A = generate_random_matrix(M,K);
+//     auto B = generate_random_matrix(K,N);
 
-    std::vector<int> sizes = {4,8,16,32};
-    for (int size : sizes) {
-        write_config_file(cfg, size, size);
-        AIC aic(cfg);
-        auto cube = aic.get_cube();
-        std::vector<int32_t> C;
-        ASSERT_TRUE(cube->matmul(A, M, K, B, K, N, C));
-    }
-}
+//     std::vector<int> sizes = {4,8,16,32};
+//     for (int size : sizes) {
+//         write_config_file(cfg, size, size);
+//         AIC aic(cfg);
+//         auto cube = aic.get_cube();
+//         std::vector<int32_t> C;
+//         ASSERT_TRUE(cube->matmul(A, M, K, B, K, N, C));
+//     }
+// }
 
 // use gtest_main provided by the test target (no explicit main here)
