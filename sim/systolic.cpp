@@ -98,22 +98,38 @@ void SystolicArray::prefetch_tile(const std::vector<DataType>& A, int A_cols,
                                   std::vector<FIFO>& localB) {
     // Issue read requests for all elements this tile needs into per-local completion queues.
     // We'll later drain completion queues into the local FIFOs.
-    std::vector<std::shared_ptr<std::deque<DataType>>> completionA(static_cast<size_t>(m_tile));
-    std::vector<std::shared_ptr<std::deque<DataType>>> completionB(static_cast<size_t>(n_tile));
     size_t queue_depth = k_tile + 4;
 
-    for (size_t i = 0; i < completionA.size(); ++i) completionA[i] = std::make_shared<std::deque<DataType>>();
-    for (size_t j = 0; j < completionB.size(); ++j) completionB[j] = std::make_shared<std::deque<DataType>>();
+    // Reuse pre-allocated completion queues to避免频繁分配
+    std::vector<std::shared_ptr<std::deque<DataType>>> completionA(m_tile);
+    std::vector<std::shared_ptr<std::deque<DataType>>> completionB(n_tile);
+    for (int i = 0; i < m_tile; ++i) {
+        completionA[i] = completionA_pool[i];
+        completionA[i]->clear();
+    }
+    for (int j = 0; j < n_tile; ++j) {
+        completionB[j] = completionB_pool[j];
+        completionB[j]->clear();
+    }
 
     for (int kk = 0; kk < k_tile; kk++) {
         int k_idx = kb + kk;
         for (int i = 0; i < m_tile; ++i) {
             uint32_t addrA = static_cast<uint32_t>((mb + i) * A_cols + (kb + kk));
-            memory->read_request(addrA, completionA[i], queue_depth);
+            while (!memory->read_request(addrA, completionA[i], queue_depth)) {
+                // backpressure: 等待内存 outstanding 降低
+                stats.memory_backpressure_cycles++;
+                if (clock) clock->tick();
+            }
+            stats.memory_accesses++;
         }
         for (int j = 0; j < n_tile; ++j) {
             uint32_t addrB = static_cast<uint32_t>((k_idx) * B_cols + (nb + j) + static_cast<uint32_t>(A.size()));
-            memory->read_request(addrB, completionB[j], queue_depth);
+            while (!memory->read_request(addrB, completionB[j], queue_depth)) {
+                stats.memory_backpressure_cycles++;
+                if (clock) clock->tick();
+            }
+            stats.memory_accesses++;
         }
     }
 
@@ -161,6 +177,7 @@ void SystolicArray::prefetch_tile(const std::vector<DataType>& A, int A_cols,
         waited++;
     }
     if (waited >= max_wait) std::cerr << "Warning: tile preload timeout" << std::endl;
+    stats.load_cycles += waited;
 }
 
 // Helper: process a tile using its local FIFOs and commit results into C
@@ -237,7 +254,8 @@ void SystolicArray::process_tile(std::vector<FIFO>& localA,
         }
 
         // Debug trace for small tiles: print staged inputs and PE state around tick
-        bool do_trace = (config.verbose && m_tile <= 4 && n_tile <= 4 && t < 8);
+        int trace_limit = config.trace_cycles > 0 ? config.trace_cycles : 8;
+        bool do_trace = (config.verbose && m_tile <= 4 && n_tile <= 4 && t < trace_limit);
         if (do_trace) {
             std::cout << "--- Cycle " << t << " before tick ---" << std::endl;
             for (int i = 0; i < m_tile; ++i) {
@@ -370,7 +388,8 @@ SystolicArray::SystolicArray(const SystolicConfig& cfg)
     for (int i = 0; i < config.array_rows; ++i) pe_listener_ids[i].resize(config.array_cols, 0);
     
     // 初始化内存接口（使用 unique_ptr）
-    memory = std::unique_ptr<MemoryInterface>(new MemoryInterface(64, config.memory_latency, config.bandwidth));
+    int max_outstanding = config.max_outstanding > 0 ? config.max_outstanding : 0;
+    memory = std::unique_ptr<MemoryInterface>(new MemoryInterface(64, config.memory_latency, config.bandwidth, max_outstanding));
     // 初始化时钟并将内存周期行为注册为监听器
     clock = std::unique_ptr<Clock>(new Clock());
     // register memory cycle at highest priority (0)
@@ -399,7 +418,13 @@ SystolicArray::SystolicArray(const SystolicConfig& cfg)
     }, 3);
     
     // 重置统计
-    stats = {0, 0, 0, 0, 0};
+    stats = {0, 0, 0, 0, 0, 0, 0, 0};
+
+    // 预分配 completion 队列池
+    completionA_pool.resize(config.array_rows);
+    completionB_pool.resize(config.array_cols);
+    for (auto &q : completionA_pool) q = std::make_shared<std::deque<DataType>>();
+    for (auto &q : completionB_pool) q = std::make_shared<std::deque<DataType>>();
 }
 
 SystolicArray::~SystolicArray() {
@@ -421,6 +446,7 @@ void SystolicArray::reset() {
     current_cycle = 0;
     weight_load_ptr = activation_load_ptr = result_unload_ptr = 0;
     rows_processed = cols_processed = 0;
+    stats = {0, 0, 0, 0, 0, 0, 0, 0};
     
     // 清空FIFO
     while (!weight_fifo->empty()) {
@@ -443,10 +469,13 @@ void SystolicArray::print_stats() const {
     std::cout << "\n=== Systolic Array Performance Statistics ===" << std::endl;
     std::cout << "Total cycles: " << stats.total_cycles << std::endl;
     std::cout << "Compute cycles: " << stats.compute_cycles << std::endl;
+    std::cout << "Load cycles (prefetch wait): " << stats.load_cycles << std::endl;
+    std::cout << "Drain cycles: " << stats.drain_cycles << std::endl;
     std::cout << "Memory stall cycles: " << stats.memory_stall_cycles 
               << " (" << std::fixed << std::setprecision(1) 
               << (double)stats.memory_stall_cycles / stats.total_cycles * 100 
               << "%)" << std::endl;
+    std::cout << "Memory backpressure cycles: " << stats.memory_backpressure_cycles << std::endl;
     std::cout << "MAC operations: " << stats.mac_operations << std::endl;
     std::cout << "Theoretical peak MACs: " 
               << config.array_rows * config.array_cols * stats.compute_cycles 

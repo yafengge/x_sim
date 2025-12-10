@@ -2,14 +2,21 @@
 #include <cstddef>
 #include <memory>
 
-MemoryInterface::MemoryInterface(int size_kb, int lat, int bw)
+MemoryInterface::MemoryInterface(int size_kb, int lat, int bw, int max_out)
     : latency(lat), bandwidth(bw) {
+    if (max_out > 0) {
+        max_outstanding = max_out;
+    } else {
+        // 简单估计：每周期带宽 * 延迟
+        max_outstanding = bandwidth * latency;
+    }
     // 简单地把 size_kb 解释为元素数量（而不是字节），以便测试时足够
     memory.resize(size_kb);
 }
 
 bool MemoryInterface::read_request(uint32_t addr, std::shared_ptr<std::deque<DataType>> completion_queue, size_t max_queue_depth) {
     if (addr >= memory.size()) return false;
+    if (static_cast<int>(pending_requests.size()) >= max_outstanding) return false;
     Request req;
     req.addr = addr;
     req.completion_queue = completion_queue;
@@ -22,6 +29,7 @@ bool MemoryInterface::read_request(uint32_t addr, std::shared_ptr<std::deque<Dat
 
 bool MemoryInterface::write_request(uint32_t addr, DataType data) {
     if (addr >= memory.size()) return false;
+    if (static_cast<int>(pending_requests.size()) >= max_outstanding) return false;
     Request req;
     req.addr = addr;
     req.completion_queue = std::shared_ptr<std::deque<DataType>>();

@@ -12,6 +12,7 @@ private:
     std::vector<DataType> memory;
     int latency;
     int bandwidth;
+    int max_outstanding;
     struct Request {
         uint32_t addr;
         // shared pointer to a completion queue where completed data will be pushed
@@ -25,7 +26,7 @@ private:
     std::vector<Request> pending_requests;
 
 public:
-    MemoryInterface(int size_kb, int lat, int bw);
+    MemoryInterface(int size_kb, int lat, int bw, int max_outstanding = -1);
 
     // 向 memory 发起读请求，完成后数据会被 push 到 completion_queue（遵守 max_queue_depth）
     // completion_queue is non-owning; caller must ensure it lives until request completes

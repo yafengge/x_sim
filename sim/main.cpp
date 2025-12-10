@@ -6,6 +6,9 @@
 #include <string>
 #include <iomanip>
 
+static bool g_verbose = false;
+static int g_trace_cycles = 0;
+
 // 生成随机矩阵
 std::vector<int16_t> generate_random_matrix(int rows, int cols, int min_val = -128, int max_val = 127) {
     std::random_device rd;
@@ -38,6 +41,8 @@ void test_small_matrix() {
     
     // 创建脉动阵列
     SystolicConfig config(4, 4);
+    config.verbose = g_verbose;
+    config.trace_cycles = g_trace_cycles;
     SystolicArray array(config);
     
     // 定义测试矩阵
@@ -93,6 +98,8 @@ void test_large_matrix(bool quick=false) {
     std::cout << "\n=== Test 2: Large Matrix (" << M << "x" << K << " * " << K << "x" << N << ") ===" << std::endl;
     
     SystolicConfig config(16, 16);  // 16x16 脉动阵列
+    config.verbose = g_verbose;
+    config.trace_cycles = g_trace_cycles;
     // show progress every 8 tiles to give user feedback for large runs
     config.progress_interval = quick ? 0 : 8;
     SystolicArray array(config);
@@ -179,6 +186,8 @@ void test_dataflow_modes(bool quick=false) {
     {
         std::cout << "\n1. Weight Stationary Mode:" << std::endl;
         SystolicConfig config(8, 8);
+        config.verbose = g_verbose;
+        config.trace_cycles = g_trace_cycles;
         config.dataflow = SystolicConfig::Dataflow::WEIGHT_STATIONARY;
         SystolicArray array(config);
         
@@ -211,6 +220,8 @@ void test_scaling(bool quick=false) {
         std::cout << "\nArray size: " << size << "x" << size << std::endl;
         
         SystolicConfig config(size, size);
+        config.verbose = g_verbose;
+        config.trace_cycles = g_trace_cycles;
         SystolicArray array(config);
         
         std::vector<int32_t> C;
@@ -232,11 +243,17 @@ int main(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) {
         std::string arg(argv[i]);
         if (arg == "--quick" || arg == "-q") quick = true;
+        else if (arg == "--verbose" || arg == "-v") g_verbose = true;
+        else if (arg.rfind("--trace=", 0) == 0) {
+            g_trace_cycles = std::stoi(arg.substr(8));
+            if (g_trace_cycles > 0) g_verbose = true;
+        }
     }
 
     std::cout << "=== Systolic Array C Model Simulation ===" << std::endl;
     std::cout << "==========================================" << std::endl;
     if (quick) std::cout << "(Quick mode: smaller tests, skip full checks)" << std::endl;
+    if (g_trace_cycles > 0) std::cout << "(Trace enabled: first " << g_trace_cycles << " cycles)" << std::endl;
     
     // 运行测试
    test_small_matrix();

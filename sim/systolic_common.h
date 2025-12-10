@@ -17,6 +17,8 @@ struct SystolicConfig {
     int bandwidth;       // 带宽（字/周期）
     int progress_interval; // If >0, print a progress update every this many tiles
     bool verbose;          // Verbose printing flag
+    int trace_cycles;      // 如 >0，对前 trace_cycles 周期打印跟踪
+    int max_outstanding;   // 内存最大未完成请求数（<=0 表示按带宽*延迟自动推算）
 
     // 数据流模式
     enum class Dataflow {
@@ -30,7 +32,8 @@ struct SystolicConfig {
     SystolicConfig(int r=8, int c=8) : 
         array_rows(r), array_cols(c), pe_latency(1), 
         memory_latency(10), bandwidth(4), 
-        progress_interval(0), verbose(false),
+        progress_interval(0), verbose(false), trace_cycles(0),
+        max_outstanding(0),
         dataflow(Dataflow::WEIGHT_STATIONARY) {}
 };
 

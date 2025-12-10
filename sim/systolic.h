@@ -5,6 +5,7 @@
 #include <string>
 #include <iomanip>
 #include <memory>
+#include <deque>
 
 #include "systolic_common.h"
 #include "processing_element.h"
@@ -53,6 +54,9 @@ private:
         uint64_t memory_stall_cycles;
         uint64_t mac_operations;
         uint64_t memory_accesses;
+        uint64_t load_cycles;              // prefetch 等待周期
+        uint64_t drain_cycles;             // 若有结果回写阶段的等待
+        uint64_t memory_backpressure_cycles; // 因未完成请求过多而阻塞的周期
     } stats;
     
     // 数据流控制变量
@@ -70,6 +74,10 @@ private:
     // 阵列内部数据移动
     void shift_activations_right();
     void shift_partial_sums_down();
+
+    // 复用的 completion 队列池，避免重复分配
+    std::vector<std::shared_ptr<std::deque<DataType>>> completionA_pool;
+    std::vector<std::shared_ptr<std::deque<DataType>>> completionB_pool;
 
     // Helpers extracted from matrix_multiply for modularity
     void prefetch_tile(const std::vector<DataType>& A, int A_cols,
