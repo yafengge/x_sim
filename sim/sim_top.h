@@ -16,13 +16,9 @@ public:
 
     // 分步构建接口（build_all 创建 clock/mem 后传给 build_cube）
     std::shared_ptr<Mem> build_mem(const std::shared_ptr<Clock>& clk);
-    std::shared_ptr<Mem> build_mem(const std::shared_ptr<Clock>& clk, const SystolicConfig& cfg);
 
     Cube& build_cube(const std::shared_ptr<Clock>& clk,
                      const std::shared_ptr<Mem>& mem);
-    Cube& build_cube(const std::shared_ptr<Clock>& clk,
-                     const std::shared_ptr<Mem>& mem,
-                     const SystolicConfig& cfg);
     void build_all();
 
     // 访问器

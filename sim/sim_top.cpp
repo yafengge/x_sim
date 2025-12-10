@@ -13,31 +13,17 @@ SimTop::SimTop(const SystolicConfig& cfg)
 }
 
 Cube& SimTop::build_cube(const std::shared_ptr<Clock>& clk,
-                         const std::shared_ptr<Mem>& mem,
-                         const SystolicConfig& cfg) {
+                         const std::shared_ptr<Mem>& mem) {
   if (!cube_) {
+    SystolicConfig cfg;
+    std::string err;
+    Cube::load_config(config_path_, cfg, &err);
+    if (!err.empty()) {
+      std::cerr << "Cube config load warning: " << err << "\n";
+    }
     cube_ = std::make_unique<Cube>(cfg, clk, mem);
   }
   return *cube_;
-}
-
-Cube& SimTop::build_cube(const std::shared_ptr<Clock>& clk,
-                         const std::shared_ptr<Mem>& mem) {
-  SystolicConfig cfg;
-  std::string err;
-  Cube::load_config(config_path_, cfg, &err);
-  if (!err.empty()) {
-    std::cerr << "Cube config load warning: " << err << "\n";
-  }
-  return build_cube(clk, mem, cfg);
-}
-
-std::shared_ptr<Mem> SimTop::build_mem(const std::shared_ptr<Clock>& clk,
-                                       const SystolicConfig& cfg) {
-  int max_outstanding = cfg.max_outstanding > 0 ? cfg.max_outstanding : 0;
-  int issue_bw = cfg.bandwidth;
-  int complete_bw = cfg.bandwidth;
-  return std::make_shared<Mem>(64, cfg.memory_latency, issue_bw, complete_bw, max_outstanding, clk);
 }
 
 std::shared_ptr<Mem> SimTop::build_mem(const std::shared_ptr<Clock>& clk) {
@@ -47,7 +33,11 @@ std::shared_ptr<Mem> SimTop::build_mem(const std::shared_ptr<Clock>& clk) {
   if (!err.empty()) {
     std::cerr << "Memory config load warning: " << err << "\n";
   }
-  return build_mem(clk, cfg);
+
+  int max_outstanding = cfg.max_outstanding > 0 ? cfg.max_outstanding : 0;
+  int issue_bw = cfg.bandwidth;
+  int complete_bw = cfg.bandwidth;
+  return std::make_shared<Mem>(64, cfg.memory_latency, issue_bw, complete_bw, max_outstanding, clk);
 }
 
 void SimTop::build_all() {
