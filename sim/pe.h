@@ -1,7 +1,7 @@
 #ifndef PE_H
 #define PE_H
 
-#include "systolic_common.h"
+#include "types.h"
 
 class PE {
 private:

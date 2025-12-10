@@ -2,7 +2,7 @@
 #define CONFIG_LOADER_H
 
 #include <string>
-#include "systolic_common.h"
+#include "types.h"
 #include "config_cache.h"
 
 // Per-key getters backed by a global ConfigCache (thread-safe, auto-reload).
