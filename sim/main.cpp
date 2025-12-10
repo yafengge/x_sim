@@ -3,6 +3,8 @@
 #include <vector>
 #include <random>
 #include <chrono>
+#include <string>
+#include <iomanip>
 
 // 生成随机矩阵
 std::vector<int16_t> generate_random_matrix(int rows, int cols, int min_val = -128, int max_val = 127) {
@@ -83,15 +85,17 @@ void test_small_matrix() {
 }
 
 // 测试2: 大矩阵性能测试
-void test_large_matrix() {
-    std::cout << "\n=== Test 2: Large Matrix (128x128 * 128x128) ===" << std::endl;
+void test_large_matrix(bool quick=false) {
+    int M = quick ? 32 : 128;
+    int K = M;
+    int N = M;
+
+    std::cout << "\n=== Test 2: Large Matrix (" << M << "x" << K << " * " << K << "x" << N << ") ===" << std::endl;
     
     SystolicConfig config(16, 16);  // 16x16 脉动阵列
     // show progress every 8 tiles to give user feedback for large runs
-    config.progress_interval = 8;
+    config.progress_interval = quick ? 0 : 8;
     SystolicArray array(config);
-    
-    int M = 128, K = 128, N = 128;
     
     // 生成随机矩阵
     std::cout << "Generating random matrices..." << std::endl;
@@ -141,10 +145,14 @@ void test_large_matrix() {
             std::cout << "Partial verification PASSED!" << std::endl;
         }
         
-        // 完整验证（可选，比较慢）
-        bool full_correct = SystolicArray::verify_result(A, M, K, B, K, N, C);
-        if (full_correct) std::cout << "Full verification PASSED!" << std::endl;
-        else std::cout << "Full verification FAILED!" << std::endl;
+        // 完整验证（可选，较慢），在快跑模式下跳过
+        if (!quick) {
+            bool full_correct = SystolicArray::verify_result(A, M, K, B, K, N, C);
+            if (full_correct) std::cout << "Full verification PASSED!" << std::endl;
+            else std::cout << "Full verification FAILED!" << std::endl;
+        } else {
+            std::cout << "Full verification skipped in quick mode" << std::endl;
+        }
         
         array.print_stats();
         
@@ -158,10 +166,12 @@ void test_large_matrix() {
 }
 
 // 测试3: 不同数据流模式比较
-void test_dataflow_modes() {
+void test_dataflow_modes(bool quick=false) {
     std::cout << "\n=== Test 3: Different Dataflow Modes ===" << std::endl;
     
-    int M = 64, K = 64, N = 64;
+    int M = quick ? 32 : 64;
+    int K = M;
+    int N = M;
     auto A = generate_random_matrix(M, K);
     auto B = generate_random_matrix(K, N);
     
@@ -186,14 +196,16 @@ void test_dataflow_modes() {
 }
 
 // 测试4: 不同阵列尺寸的性能缩放
-void test_scaling() {
+void test_scaling(bool quick=false) {
     std::cout << "\n=== Test 4: Array Size Scaling ===" << std::endl;
     
-    int M = 256, K = 256, N = 256;
+    int M = quick ? 128 : 256;
+    int K = M;
+    int N = M;
     auto A = generate_random_matrix(M, K);
     auto B = generate_random_matrix(K, N);
     
-    std::vector<int> sizes = {4, 8, 16, 32};
+    std::vector<int> sizes = quick ? std::vector<int>{4, 8} : std::vector<int>{4, 8, 16, 32};
     
     for (int size : sizes) {
         std::cout << "\nArray size: " << size << "x" << size << std::endl;
@@ -215,15 +227,22 @@ void test_scaling() {
     }
 }
 
-int main() {
+int main(int argc, char** argv) {
+    bool quick = false;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg(argv[i]);
+        if (arg == "--quick" || arg == "-q") quick = true;
+    }
+
     std::cout << "=== Systolic Array C Model Simulation ===" << std::endl;
     std::cout << "==========================================" << std::endl;
+    if (quick) std::cout << "(Quick mode: smaller tests, skip full checks)" << std::endl;
     
     // 运行测试
    test_small_matrix();
-   test_large_matrix();
-   test_dataflow_modes();
-   test_scaling();
+   test_large_matrix(quick);
+   test_dataflow_modes(quick);
+   test_scaling(quick);
     
     std::cout << "\n=== All Tests Completed ===" << std::endl;
     

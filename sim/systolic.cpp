@@ -65,7 +65,7 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
                 for (int j = 0; j < n_tile; ++j) localB_pool[j].reset(k_tile + 4);
 
                 // Prefetch addresses into local FIFOs (issue requests and wait)
-                prefetch_tile(A, A_cols, B, B_cols, mb, nb, kb, k_tile, localA_pool, localB_pool);
+                prefetch_tile(A, A_cols, B, B_cols, mb, nb, kb, m_tile, n_tile, k_tile, localA_pool, localB_pool);
 
                 // Run the cycle-accurate processing for this tile and commit results into C
                 // set controller state so registered SystolicArray::cycle treats these ticks as PROCESSING
@@ -93,13 +93,13 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
 // Helper: prefetch a tile's A/B data into local FIFOs
 void SystolicArray::prefetch_tile(const std::vector<DataType>& A, int A_cols,
                                   const std::vector<DataType>& B, int B_cols,
-                                  int mb, int nb, int kb, int k_tile,
+                                  int mb, int nb, int kb, int m_tile, int n_tile, int k_tile,
                                   std::vector<FIFO>& localA,
                                   std::vector<FIFO>& localB) {
     // Issue read requests for all elements this tile needs into per-local completion queues.
     // We'll later drain completion queues into the local FIFOs.
-    std::vector<std::shared_ptr<std::deque<DataType>>> completionA(localA.size());
-    std::vector<std::shared_ptr<std::deque<DataType>>> completionB(localB.size());
+    std::vector<std::shared_ptr<std::deque<DataType>>> completionA(static_cast<size_t>(m_tile));
+    std::vector<std::shared_ptr<std::deque<DataType>>> completionB(static_cast<size_t>(n_tile));
     size_t queue_depth = k_tile + 4;
 
     for (size_t i = 0; i < completionA.size(); ++i) completionA[i] = std::make_shared<std::deque<DataType>>();
@@ -107,11 +107,11 @@ void SystolicArray::prefetch_tile(const std::vector<DataType>& A, int A_cols,
 
     for (int kk = 0; kk < k_tile; kk++) {
         int k_idx = kb + kk;
-        for (int i = 0; i < static_cast<int>(localA.size()); ++i) {
+        for (int i = 0; i < m_tile; ++i) {
             uint32_t addrA = static_cast<uint32_t>((mb + i) * A_cols + (kb + kk));
             memory->read_request(addrA, completionA[i], queue_depth);
         }
-        for (int j = 0; j < static_cast<int>(localB.size()); ++j) {
+        for (int j = 0; j < n_tile; ++j) {
             uint32_t addrB = static_cast<uint32_t>((k_idx) * B_cols + (nb + j) + static_cast<uint32_t>(A.size()));
             memory->read_request(addrB, completionB[j], queue_depth);
         }
@@ -120,8 +120,6 @@ void SystolicArray::prefetch_tile(const std::vector<DataType>& A, int A_cols,
     // Wait until each local FIFO has at least k_tile values, by draining completion queues into FIFOs as data arrives
     int max_wait = 10000;
     int waited = 0;
-    int m_tile = static_cast<int>(localA.size());
-    int n_tile = static_cast<int>(localB.size());
     while (waited < max_wait) {
         // Drain completion queues into FIFOs
         for (int i = 0; i < m_tile; ++i) {

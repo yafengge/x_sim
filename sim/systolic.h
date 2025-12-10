@@ -74,7 +74,7 @@ private:
     // Helpers extracted from matrix_multiply for modularity
     void prefetch_tile(const std::vector<DataType>& A, int A_cols,
                        const std::vector<DataType>& B, int B_cols,
-                       int mb, int nb, int kb, int k_tile,
+                       int mb, int nb, int kb, int m_tile, int n_tile, int k_tile,
                        std::vector<FIFO>& localA,
                        std::vector<FIFO>& localB);
 
