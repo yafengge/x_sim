@@ -112,17 +112,17 @@ void SystolicArray::prefetch_tile(const std::vector<DataType>& A, int A_cols,
         completionB[j]->clear();
     }
 
+    // A 行是连续数据，按行突发读取，减少请求数；B 按列仍逐元素读取
+    for (int i = 0; i < m_tile; ++i) {
+        uint32_t addrA = static_cast<uint32_t>((mb + i) * A_cols + kb);
+        while (!memory->read_request(addrA, completionA[i], queue_depth, static_cast<size_t>(k_tile))) {
+            stats.memory_backpressure_cycles++;
+            if (clock) clock->tick();
+        }
+        stats.memory_accesses += static_cast<uint64_t>(k_tile);
+    }
     for (int kk = 0; kk < k_tile; kk++) {
         int k_idx = kb + kk;
-        for (int i = 0; i < m_tile; ++i) {
-            uint32_t addrA = static_cast<uint32_t>((mb + i) * A_cols + (kb + kk));
-            while (!memory->read_request(addrA, completionA[i], queue_depth)) {
-                // backpressure: 等待内存 outstanding 降低
-                stats.memory_backpressure_cycles++;
-                if (clock) clock->tick();
-            }
-            stats.memory_accesses++;
-        }
         for (int j = 0; j < n_tile; ++j) {
             uint32_t addrB = static_cast<uint32_t>((k_idx) * B_cols + (nb + j) + static_cast<uint32_t>(A.size()));
             while (!memory->read_request(addrB, completionB[j], queue_depth)) {
@@ -389,7 +389,9 @@ SystolicArray::SystolicArray(const SystolicConfig& cfg)
     
     // 初始化内存接口（使用 unique_ptr）
     int max_outstanding = config.max_outstanding > 0 ? config.max_outstanding : 0;
-    memory = std::unique_ptr<MemoryInterface>(new MemoryInterface(64, config.memory_latency, config.bandwidth, max_outstanding));
+    int issue_bw = config.bandwidth;
+    int complete_bw = config.bandwidth;
+    memory = std::unique_ptr<MemoryInterface>(new MemoryInterface(64, config.memory_latency, issue_bw, complete_bw, max_outstanding));
     // 初始化时钟并将内存周期行为注册为监听器
     clock = std::unique_ptr<Clock>(new Clock());
     // register memory cycle at highest priority (0)
