@@ -396,11 +396,10 @@ SystolicArray::SystolicArray(const std::string& config_path, p_clock_t external_
     }
     memory = external_mem;
     // 初始化/绑定时钟并将内存周期行为注册为监听器
-    if (external_clock) {
-        clock = external_clock;
-    } else {
-        clock = p_clock_t(new Clock());
+    if (!external_clock) {
+        throw std::invalid_argument("SystolicArray requires an external clock; provide via SimTop::build_clk and pass it through");
     }
+    clock = external_clock;
     // register memory cycle at highest priority (0)
     mem_listener_id = clock->add_listener([this]() {
         if (memory) memory->cycle();

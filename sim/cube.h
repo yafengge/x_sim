@@ -10,7 +10,7 @@
 class Cube {
 public:
     explicit Cube(const std::string& config_path,
-                  p_clock_t external_clock = nullptr,
+                  p_clock_t external_clock,
                   p_mem_t external_mem = nullptr);
 
     // (Configuration is read on-demand via per-key getters; no in-memory struct)

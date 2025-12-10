@@ -109,7 +109,7 @@ private:
     
 public:
     SystolicArray(const std::string& config_path,
-                  p_clock_t external_clock = nullptr,
+                  p_clock_t external_clock,
                   p_mem_t external_mem = nullptr);
 
     // helpers that read configuration keys from config file (no caching)
