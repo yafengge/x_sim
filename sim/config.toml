@@ -1,7 +1,7 @@
 # Auto-generated test config
 [cube]
-array_rows = 8
-array_cols = 8
+array_rows = 32
+array_cols = 32
 verbose = false
 trace_cycles = 0
 progress_interval = 0

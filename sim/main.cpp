@@ -1,7 +1,7 @@
 #include "systolic.h"
 #include "cube.h"
 #include "sim_top.h"
-#include "config_loader.h"
+#include "config_mgr.h"
 #include <iostream>
 #include <vector>
 #include <fstream>
