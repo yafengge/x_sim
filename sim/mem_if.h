@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "systolic_common.h"
+#include "types.h"
 #include "fifo.h"
 
 class Clock;

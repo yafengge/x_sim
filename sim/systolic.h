@@ -7,7 +7,7 @@
 #include <memory>
 #include <deque>
 
-#include "systolic_common.h"
+#include "types.h"
 #include "pe.h"
 #include "fifo.h"
 #include "mem_if.h"

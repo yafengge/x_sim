@@ -1,7 +1,7 @@
 #ifndef SYSTOLIC_FIFO_H
 #define SYSTOLIC_FIFO_H
 
-#include "systolic_common.h"
+#include "types.h"
 #include <vector>
 
 struct FIFO {

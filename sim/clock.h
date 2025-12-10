@@ -5,7 +5,7 @@
 #include <functional>
 #include <algorithm>
 #include <cstdint>
-#include "systolic_common.h"
+#include "types.h"
 
 class Clock {
 public:
