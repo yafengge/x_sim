@@ -1,9 +1,9 @@
-#ifndef PROCESSING_ELEMENT_H
-#define PROCESSING_ELEMENT_H
+#ifndef PE_H
+#define PE_H
 
 #include "systolic_common.h"
 
-class ProcessingElement {
+class PE {
 private:
     int id_x, id_y;           // PE坐标
     DataType weight;          // 存储的权重
@@ -22,9 +22,9 @@ private:
     } pipeline_reg;
 
 public:
-    ProcessingElement() = default;       
+    PE() = default;       
 
-    ProcessingElement(int x, int y);
+    PE(int x, int y);
     
     // 重置PE
     void reset();
@@ -61,4 +61,4 @@ public:
     void print_state() const;
 };
 
-#endif // PROCESSING_ELEMENT_H
+#endif // PE_H

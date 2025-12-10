@@ -2,7 +2,7 @@
 #include <cstddef>
 #include <memory>
 
-MemoryInterface::MemoryInterface(int size_kb, int lat, int issue_bw, int complete_bw, int max_out)
+Mem::Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_out)
     : latency(lat),
       issue_bw_read(issue_bw), issue_bw_write(issue_bw),
       complete_bw_read(complete_bw), complete_bw_write(complete_bw),
@@ -17,7 +17,7 @@ MemoryInterface::MemoryInterface(int size_kb, int lat, int issue_bw, int complet
     memory.resize(size_kb);
 }
 
-bool MemoryInterface::read_request(uint32_t addr, std::shared_ptr<std::deque<DataType>> completion_queue, size_t max_queue_depth, size_t len) {
+bool Mem::read_request(uint32_t addr, std::shared_ptr<std::deque<DataType>> completion_queue, size_t max_queue_depth, size_t len) {
     if (addr >= memory.size()) return false;
     if (len == 0) return true;
     if (static_cast<int>(pending_requests.size()) >= max_outstanding) return false;
@@ -35,7 +35,7 @@ bool MemoryInterface::read_request(uint32_t addr, std::shared_ptr<std::deque<Dat
     return true;
 }
 
-bool MemoryInterface::write_request(uint32_t addr, DataType data) {
+bool Mem::write_request(uint32_t addr, DataType data) {
     if (addr >= memory.size()) return false;
     if (static_cast<int>(pending_requests.size()) >= max_outstanding) return false;
     if (issued_write_this_cycle >= issue_bw_write) return false;
@@ -53,7 +53,7 @@ bool MemoryInterface::write_request(uint32_t addr, DataType data) {
     return true;
 }
 
-void MemoryInterface::cycle() {
+void Mem::cycle() {
     current_cycle++;
     issued_read_this_cycle = 0;
     issued_write_this_cycle = 0;
@@ -108,7 +108,7 @@ void MemoryInterface::cycle() {
     }
 }
 
-void MemoryInterface::load_data(const std::vector<DataType>& data, uint32_t offset) {
+void Mem::load_data(const std::vector<DataType>& data, uint32_t offset) {
     if (offset + data.size() > memory.size()) {
         // 如果不足，扩展内存
         memory.resize(offset + data.size());

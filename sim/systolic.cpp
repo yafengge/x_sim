@@ -7,9 +7,9 @@
 #include <cmath>
 #include <map>
 
-// Implementations for ProcessingElement and MemoryInterface have been
-// moved to their respective compilation units: processing_element.cpp
-// and memory_interface.cpp
+// Implementations for PE and Mem have been
+// moved to their respective compilation units: pe.cpp
+// and mem_if.cpp
 
 // 简单正确的矩阵乘法实现（用于验证和保证结果正确）
 bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, int A_cols,
@@ -298,7 +298,7 @@ void SystolicArray::process_tile(std::vector<FIFO>& localA,
     }
 }
 
-// ProcessingElement methods implemented in processing_element.cpp
+// PE methods implemented in pe.cpp
 
 // 修正 cycle 函数中的计算部分
 void SystolicArray::cycle() {
@@ -363,7 +363,7 @@ void SystolicArray::cycle() {
     current_cycle++;
 }
 
-// ProcessingElement print_state implemented in processing_element.cpp
+// PE print_state implemented in pe.cpp
 
 // ==================== SystolicArray 核心实现 ====================
 SystolicArray::SystolicArray(const SystolicConfig& cfg, std::shared_ptr<Clock> external_clock) 
@@ -380,7 +380,7 @@ SystolicArray::SystolicArray(const SystolicConfig& cfg, std::shared_ptr<Clock> e
     for (int i = 0; i < config.array_rows; i++) {
         pes[i].resize(config.array_cols);
         for (int j = 0; j < config.array_cols; j++) {
-            pes[i][j] = ProcessingElement(i, j);
+            pes[i][j] = PE(i, j);
         }
     }
     // prepare pe_listener_ids structure
@@ -391,7 +391,7 @@ SystolicArray::SystolicArray(const SystolicConfig& cfg, std::shared_ptr<Clock> e
     int max_outstanding = config.max_outstanding > 0 ? config.max_outstanding : 0;
     int issue_bw = config.bandwidth;
     int complete_bw = config.bandwidth;
-    memory = std::unique_ptr<MemoryInterface>(new MemoryInterface(64, config.memory_latency, issue_bw, complete_bw, max_outstanding));
+    memory = std::unique_ptr<Mem>(new Mem(64, config.memory_latency, issue_bw, complete_bw, max_outstanding));
     // 初始化/绑定时钟并将内存周期行为注册为监听器
     if (external_clock) {
         clock = external_clock;
@@ -406,7 +406,7 @@ SystolicArray::SystolicArray(const SystolicConfig& cfg, std::shared_ptr<Clock> e
     for (int i = 0; i < config.array_rows; ++i) {
         for (int j = 0; j < config.array_cols; ++j) {
             // capture pointer to PE
-            ProcessingElement* pe = &pes[i][j];
+            PE* pe = &pes[i][j];
             pe_listener_ids[i][j] = clock->add_listener([pe]() { pe->tick(); }, 1);
         }
     }
@@ -548,4 +548,4 @@ bool SystolicArray::verify_result(const std::vector<DataType>& A, int A_rows, in
     }
 }
 
-// (之前在文件顶部已实现 MemoryInterface)
+// (之前在文件顶部已实现 Mem)

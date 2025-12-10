@@ -17,7 +17,7 @@
 class SystolicArray {
 private:
     SystolicConfig config;
-    std::vector<std::vector<ProcessingElement>> pes;
+    std::vector<std::vector<PE>> pes;
 
     // 输入/输出FIFO（独占所有权，由 SystolicArray 管理）
     std::unique_ptr<FIFO> weight_fifo;
@@ -25,7 +25,7 @@ private:
     std::unique_ptr<FIFO> output_fifo;
 
     // 内存接口（独占所有权）
-    std::unique_ptr<MemoryInterface> memory;
+    std::unique_ptr<Mem> memory;
     
     // 控制器状态机
     enum class State {

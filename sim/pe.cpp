@@ -1,13 +1,13 @@
 #include "pe.h"
 #include <iostream>
 
-ProcessingElement::ProcessingElement(int x, int y) 
+PE::PE(int x, int y) 
     : id_x(x), id_y(y), weight(0), activation(0), 
       accumulator(0), weight_valid(false), active(false) {
     reset();
 }
 
-void ProcessingElement::reset() {
+void PE::reset() {
     weight = 0;
     activation = 0;
     accumulator = 0;
@@ -19,14 +19,14 @@ void ProcessingElement::reset() {
     pipeline_reg.staged_weight_valid = false;
 }
 
-void ProcessingElement::load_weight(DataType w) {
+void PE::load_weight(DataType w) {
     weight = w;
     weight_valid = true;
     active = true;
 }
 
 // Prepare inputs for tick-driven execution
-void ProcessingElement::prepare_inputs(DataType act_in, AccType psum_in, DataType weight_in, bool weight_present) {
+void PE::prepare_inputs(DataType act_in, AccType psum_in, DataType weight_in, bool weight_present) {
     // stage inputs into pipeline registers (do not update visible registers yet)
     pipeline_reg.activation = act_in;
     pipeline_reg.partial_sum = psum_in;
@@ -36,7 +36,7 @@ void ProcessingElement::prepare_inputs(DataType act_in, AccType psum_in, DataTyp
 }
 
 // Execute one tick: perform compute based on prepared inputs
-void ProcessingElement::tick() {
+void PE::tick() {
     DataType act_out;
     AccType psum_out;
     // use staged inputs; compute and update pipeline_reg but do not make values visible
@@ -44,7 +44,7 @@ void ProcessingElement::tick() {
 }
 
 // Commit the staged next-state into visible registers (two-phase commit)
-void ProcessingElement::commit() {
+void PE::commit() {
     // Always commit staged activation/psum to make sure zeros propagate and
     // accumulators do not stick across idle cycles.
     activation = pipeline_reg.activation;
@@ -58,7 +58,7 @@ void ProcessingElement::commit() {
     }
 }
 
-void ProcessingElement::compute_cycle(DataType act_in, AccType psum_in,
+void PE::compute_cycle(DataType act_in, AccType psum_in,
                                       DataType& act_out, AccType& psum_out) {
     // 传递并转发激活值（右移）：当前周期应将输入激活向右传递
     act_out = act_in;
@@ -83,7 +83,7 @@ void ProcessingElement::compute_cycle(DataType act_in, AccType psum_in,
     // gate commits on non-zero activations to avoid stuck activations.
 }
 
-void ProcessingElement::print_state() const {
+void PE::print_state() const {
     std::cout << "PE(" << id_x << "," << id_y << "): "
               << "W=" << weight << " A=" << activation 
               << " ACC=" << accumulator 
