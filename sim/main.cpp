@@ -6,9 +6,23 @@
 #include <chrono>
 #include <string>
 #include <iomanip>
+#include <memory>
 
 static bool g_verbose = false;
 static int g_trace_cycles = 0;
+
+struct CubeEnv {
+    std::shared_ptr<Clock> clock;
+    std::unique_ptr<Cube> cube;
+};
+
+// 创建带外部时钟的 Cube 封装，供各测试复用
+CubeEnv make_cube_env(const SystolicConfig& config) {
+    CubeEnv env;
+    env.clock = std::make_shared<Clock>();
+    env.cube = std::make_unique<Cube>(config, env.clock);
+    return env;
+}
 
 // 生成随机矩阵
 std::vector<int16_t> generate_random_matrix(int rows, int cols, int min_val = -128, int max_val = 127) {
@@ -44,8 +58,8 @@ void test_small_matrix() {
     SystolicConfig config(4, 4);
     config.verbose = g_verbose;
     config.trace_cycles = g_trace_cycles;
-    Cube cube(config);
-    auto &array = cube.array();
+    auto env = make_cube_env(config);
+    auto &array = env.cube->array();
     
     // 定义测试矩阵
     std::vector<int16_t> A = {
@@ -104,8 +118,8 @@ void test_large_matrix(bool quick=false) {
     config.trace_cycles = g_trace_cycles;
     // show progress every 8 tiles to give user feedback for large runs
     config.progress_interval = quick ? 0 : 8;
-    Cube cube(config);
-    auto &array = cube.array();
+    auto env = make_cube_env(config);
+    auto &array = env.cube->array();
     
     // 生成随机矩阵
     std::cout << "Generating random matrices..." << std::endl;
@@ -192,8 +206,8 @@ void test_dataflow_modes(bool quick=false) {
         config.verbose = g_verbose;
         config.trace_cycles = g_trace_cycles;
         config.dataflow = SystolicConfig::Dataflow::WEIGHT_STATIONARY;
-        Cube cube(config);
-        auto &array = cube.array();
+        auto env = make_cube_env(config);
+        auto &array = env.cube->array();
         
         std::vector<int32_t> C;
         auto start = std::chrono::high_resolution_clock::now();
@@ -226,8 +240,8 @@ void test_scaling(bool quick=false) {
         SystolicConfig config(size, size);
         config.verbose = g_verbose;
         config.trace_cycles = g_trace_cycles;
-        Cube cube(config);
-        auto &array = cube.array();
+        auto env = make_cube_env(config);
+        auto &array = env.cube->array();
         
         std::vector<int32_t> C;
         auto start = std::chrono::high_resolution_clock::now();

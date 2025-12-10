@@ -7,7 +7,7 @@
 // Cube 作为顶层封装，负责初始化和持有各个子单元（当前为 SystolicArray）
 class Cube {
 public:
-    explicit Cube(const SystolicConfig& cfg);
+    explicit Cube(const SystolicConfig& cfg, std::shared_ptr<Clock> external_clock = nullptr);
 
     // 外部可以驱动同一个时钟
     std::shared_ptr<Clock> clock() { return clock_; }
