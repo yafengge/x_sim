@@ -26,17 +26,11 @@ set(SRCS_LIB
 add_library(x_sim_lib ${SRCS_LIB})
 target_include_directories(x_sim_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_executable(x_sim main.cpp)
-target_link_libraries(x_sim PRIVATE x_sim_lib)
-
 enable_testing()
 
-# Provide a 'run-quick' custom target for convenience
-add_custom_target(run-quick
-  COMMAND $<TARGET_FILE:x_sim> --quick
-  DEPENDS x_sim
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
+# The core library `x_sim_lib` exposes the simulator functionality.
+# There is no longer a bundled `x_sim` executable in-tree; tests
+# link against `x_sim_lib` and external tools can link to this library.
 
 # Add tests directory (GoogleTest will be fetched by tests/CMakeLists)
 add_subdirectory(tests)
