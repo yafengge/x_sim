@@ -23,16 +23,12 @@ public:
 
     // 访问器
     std::shared_ptr<Clock> clock() { return cube_ ? cube_->clock() : nullptr; }
-    std::shared_ptr<const Clock> clock() const { return cube_ ? cube_->clock() : nullptr; }
 
     std::shared_ptr<Mem> memory() { return cube_ ? cube_->memory() : nullptr; }
-    std::shared_ptr<const Mem> memory() const { return cube_ ? cube_->memory() : nullptr; }
 
     std::shared_ptr<Cube> cube() { return cube_; }
-    std::shared_ptr<const Cube> cube() const { return cube_; }
 
     SystolicArray& array() { return cube_->array(); }
-    const SystolicArray& array() const { return cube_->array(); }
 
 private:
     std::string config_path_;
