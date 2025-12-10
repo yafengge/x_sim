@@ -1,4 +1,4 @@
-#include "processing_element.h"
+#include "pe.h"
 #include <iostream>
 
 ProcessingElement::ProcessingElement(int x, int y) 

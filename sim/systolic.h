@@ -8,9 +8,9 @@
 #include <deque>
 
 #include "systolic_common.h"
-#include "processing_element.h"
+#include "pe.h"
 #include "fifo.h"
-#include "memory_interface.h"
+#include "mem_if.h"
 #include "clock.h"
 
 // 脉动阵列核心
