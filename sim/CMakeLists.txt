@@ -18,7 +18,7 @@ set(SRCS_LIB
     mem_if.cpp
     clock.cpp
     cube.cpp
-    sim_top.cpp
+    aic.cpp
     config/mini_toml.cpp
     config/config_mgr.cpp
 )

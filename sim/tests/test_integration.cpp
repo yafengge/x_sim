@@ -5,7 +5,7 @@
 #include <random>
 #include <chrono>
 #include "systolic.h"
-#include "sim_top.h"
+#include "aic.h"
 #include "config/config_mgr.h"
 
 #include <gtest/gtest.h>
@@ -13,7 +13,7 @@
 TEST(Integration, SmallMatrix) {
     std::string cfg = "int_test_config.toml";
     write_config_file(cfg, 4, 4);
-    SimTop aic(cfg);
+    AIC aic(cfg);
     auto cube = aic.get_cube();
 
     std::vector<int16_t> A = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
@@ -27,7 +27,7 @@ TEST(Integration, SmallMatrix) {
 TEST(Integration, QuickLarge) {
     std::string cfg = "int_test_config2.toml";
     write_config_file(cfg, 8, 8);
-    SimTop aic(cfg);
+    AIC aic(cfg);
     auto cube = aic.get_cube();
 
     int M = 32; int K = 32; int N = 32;
@@ -56,7 +56,7 @@ TEST(Integration, DISABLED_DataflowModes) {
 
     // Weight stationary
     write_config_file(cfg, 8, 8);
-    SimTop aic_w(cfg);
+    AIC aic_w(cfg);
     auto cube_w = aic_w.get_cube();
     std::vector<int32_t> Cw;
     ASSERT_TRUE(cube_w->matmul(A, M, K, B, K, N, Cw));
@@ -66,7 +66,7 @@ TEST(Integration, DISABLED_DataflowModes) {
     std::ofstream out(cfg);
     out << "[cube]\narray_rows = 8\narray_cols = 8\nverbose = false\nprogress_interval = 0\ndataflow = \"OUTPUT_STATIONARY\"\n";
     out.close();
-    SimTop aic_o(cfg);
+    AIC aic_o(cfg);
     auto cube_o = aic_o.get_cube();
     std::vector<int32_t> Co;
     ASSERT_TRUE(cube_o->matmul(A, M, K, B, K, N, Co));
@@ -75,7 +75,7 @@ TEST(Integration, DISABLED_DataflowModes) {
     std::ofstream out2(cfg);
     out2 << "[cube]\narray_rows = 8\narray_cols = 8\nverbose = false\nprogress_interval = 0\ndataflow = \"INPUT_STATIONARY\"\n";
     out2.close();
-    SimTop aic_i(cfg);
+    AIC aic_i(cfg);
     auto cube_i = aic_i.get_cube();
     std::vector<int32_t> Ci;
     ASSERT_TRUE(cube_i->matmul(A, M, K, B, K, N, Ci));
@@ -90,7 +90,7 @@ TEST(Integration, DISABLED_Scaling) {
     std::vector<int> sizes = {4,8,16,32};
     for (int size : sizes) {
         write_config_file(cfg, size, size);
-        SimTop aic(cfg);
+        AIC aic(cfg);
         auto cube = aic.get_cube();
         std::vector<int32_t> C;
         ASSERT_TRUE(cube->matmul(A, M, K, B, K, N, C));
