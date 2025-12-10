@@ -400,7 +400,7 @@ SystolicArray::SystolicArray(const SysConfig& cfg, p_clock_t external_clock, p_m
     if (external_clock) {
         clock = external_clock;
     } else {
-        clock = std::make_shared<Clock>();
+        clock = p_clock_t(new Clock());
     }
     // register memory cycle at highest priority (0)
     mem_listener_id = clock->add_listener([this]() {

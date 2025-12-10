@@ -27,6 +27,10 @@ p_cube_t SimTop::build_cube(const p_clock_t& clk,
   return cube_;
 }
 
+p_clock_t SimTop::build_clk() {
+  return p_clock_t(new Clock());
+}
+
 p_mem_t SimTop::build_mem(const p_clock_t& clk) {
   SysConfig cfg;
   std::string err;
@@ -42,7 +46,7 @@ p_mem_t SimTop::build_mem(const p_clock_t& clk) {
 }
 
 void SimTop::build_all() {
-  auto clk = std::make_shared<Clock>();
+  auto clk = build_clk();
   auto mem = build_mem(clk);
   build_cube(clk, mem);
 }
