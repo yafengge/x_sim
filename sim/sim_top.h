@@ -28,7 +28,7 @@ public:
 
     std::shared_ptr<Cube> cube() { return cube_; }
 
-    SystolicArray& array() { return cube_->array(); }
+    SystolicArray* array() { return cube_ ? &cube_->array() : nullptr; }
 
 private:
     std::string config_path_;
