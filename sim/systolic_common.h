@@ -16,7 +16,7 @@ typedef int32_t AccType;       // 32位累加器
 typedef uint64_t Cycle;        // 周期计数器
 
 // 脉动阵列配置
-struct SystolicConfig {
+struct SysConfig {
     int array_rows;      // 阵列行数
     int array_cols;      // 阵列列数
     int pe_latency;      // PE计算延迟（周期）
@@ -36,7 +36,7 @@ struct SystolicConfig {
 
     Dataflow dataflow;
 
-    SystolicConfig(int r=8, int c=8) : 
+    SysConfig(int r=8, int c=8) : 
         array_rows(r), array_cols(c), pe_latency(1), 
         memory_latency(10), bandwidth(4), 
         progress_interval(0), verbose(false), trace_cycles(0),

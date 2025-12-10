@@ -16,7 +16,7 @@
 // 脉动阵列核心
 class SystolicArray {
 private:
-    SystolicConfig config;
+    SysConfig config;
     std::vector<std::vector<PE>> pes;
 
     // 输入/输出FIFO（独占所有权，由 SystolicArray 管理）
@@ -92,7 +92,7 @@ private:
                       std::vector<AccType>& C, int N);
     
 public:
-    SystolicArray(const SystolicConfig& cfg,
+    SystolicArray(const SysConfig& cfg,
                   p_clock_t external_clock = nullptr,
                   p_mem_t external_mem = nullptr);
     ~SystolicArray();

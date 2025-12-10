@@ -40,11 +40,11 @@ void print_matrix(const std::vector<int16_t>& mat, int rows, int cols, const std
 }
 
 // 测试1: 小矩阵功能测试
-void test_small_matrix(const SystolicConfig& base_cfg) {
+void test_small_matrix(const SysConfig& base_cfg) {
     std::cout << "=== Test 1: Small Matrix (4x4 * 4x4) ===" << std::endl;
     
     // 创建脉动阵列
-    SystolicConfig config = base_cfg;
+    SysConfig config = base_cfg;
     config.array_rows = 4;
     config.array_cols = 4;
     config.verbose = g_verbose;
@@ -97,14 +97,14 @@ void test_small_matrix(const SystolicConfig& base_cfg) {
 }
 
 // 测试2: 大矩阵性能测试
-void test_large_matrix(const SystolicConfig& base_cfg, bool quick=false) {
+void test_large_matrix(const SysConfig& base_cfg, bool quick=false) {
     int M = quick ? 32 : 128;
     int K = M;
     int N = M;
 
     std::cout << "\n=== Test 2: Large Matrix (" << M << "x" << K << " * " << K << "x" << N << ") ===" << std::endl;
     
-    SystolicConfig config = base_cfg;
+    SysConfig config = base_cfg;
     config.array_rows = 16;
     config.array_cols = 16;  // 16x16 脉动阵列
     config.verbose = g_verbose;
@@ -183,7 +183,7 @@ void test_large_matrix(const SystolicConfig& base_cfg, bool quick=false) {
 }
 
 // 测试3: 不同数据流模式比较
-void test_dataflow_modes(const SystolicConfig& base_cfg, bool quick=false) {
+void test_dataflow_modes(const SysConfig& base_cfg, bool quick=false) {
     std::cout << "\n=== Test 3: Different Dataflow Modes ===" << std::endl;
     
     int M = quick ? 32 : 64;
@@ -195,12 +195,12 @@ void test_dataflow_modes(const SystolicConfig& base_cfg, bool quick=false) {
     // 测试权重固定模式
     {
         std::cout << "\n1. Weight Stationary Mode:" << std::endl;
-        SystolicConfig config = base_cfg;
+        SysConfig config = base_cfg;
         config.array_rows = 8;
         config.array_cols = 8;
         config.verbose = g_verbose;
         config.trace_cycles = g_trace_cycles;
-        config.dataflow = SystolicConfig::Dataflow::WEIGHT_STATIONARY;
+        config.dataflow = SysConfig::Dataflow::WEIGHT_STATIONARY;
         SimTop env(config);
         auto array = env.array();
         
@@ -218,7 +218,7 @@ void test_dataflow_modes(const SystolicConfig& base_cfg, bool quick=false) {
 }
 
 // 测试4: 不同阵列尺寸的性能缩放
-void test_scaling(const SystolicConfig& base_cfg, bool quick=false) {
+void test_scaling(const SysConfig& base_cfg, bool quick=false) {
     std::cout << "\n=== Test 4: Array Size Scaling ===" << std::endl;
     
     int M = quick ? 128 : 256;
@@ -232,7 +232,7 @@ void test_scaling(const SystolicConfig& base_cfg, bool quick=false) {
     for (int size : sizes) {
         std::cout << "\nArray size: " << size << "x" << size << std::endl;
         
-        SystolicConfig config = base_cfg;
+        SysConfig config = base_cfg;
         config.array_rows = size;
         config.array_cols = size;
         config.verbose = g_verbose;
@@ -268,11 +268,11 @@ int main(int argc, char** argv) {
         }
     }
 
-    SystolicConfig base_cfg;
+    SysConfig base_cfg;
     std::string err;
     if (!load_config(g_config_path, base_cfg, &err)) {
         std::cerr << "Failed to load config '" << g_config_path << "': " << err << "\n";
-        std::cerr << "Using default SystolicConfig values." << std::endl;
+        std::cerr << "Using default SysConfig values." << std::endl;
     }
 
     // CLI overrides still apply

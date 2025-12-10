@@ -1,7 +1,7 @@
 #include "cube.h"
 #include "config_loader.h"
 
-Cube::Cube(const SystolicConfig& cfg, p_clock_t external_clock, p_mem_t external_mem)
+Cube::Cube(const SysConfig& cfg, p_clock_t external_clock, p_mem_t external_mem)
         : config_(cfg),
             clock_(external_clock ? external_clock : std::make_shared<Clock>()),
             mem_(external_mem),
@@ -12,6 +12,6 @@ Cube::Cube(const SystolicConfig& cfg, p_clock_t external_clock, p_mem_t external
         }
 }
 
-bool Cube::load_config(const std::string& path, SystolicConfig& cfg, std::string* err) {
+bool Cube::load_config(const std::string& path, SysConfig& cfg, std::string* err) {
     return load_cube_config(path, cfg, err);
 }

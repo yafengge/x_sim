@@ -366,7 +366,7 @@ void SystolicArray::cycle() {
 // PE print_state implemented in pe.cpp
 
 // ==================== SystolicArray 核心实现 ====================
-SystolicArray::SystolicArray(const SystolicConfig& cfg, p_clock_t external_clock, p_mem_t external_mem) 
+SystolicArray::SystolicArray(const SysConfig& cfg, p_clock_t external_clock, p_mem_t external_mem) 
         : config(cfg),
             weight_fifo(new FIFO(16)),
             activation_fifo(new FIFO(16)),

@@ -7,7 +7,7 @@ SimTop::SimTop(const std::string& config_path)
   build_all();
 }
 
-SimTop::SimTop(const SystolicConfig& cfg)
+SimTop::SimTop(const SysConfig& cfg)
   : config_path_("config.toml") {
   (void)cfg;
   build_all();
@@ -16,7 +16,7 @@ SimTop::SimTop(const SystolicConfig& cfg)
 p_cube_t SimTop::build_cube(const p_clock_t& clk,
                             const p_mem_t& mem) {
   if (!cube_) {
-    SystolicConfig cfg;
+    SysConfig cfg;
     std::string err;
     Cube::load_config(config_path_, cfg, &err);
     if (!err.empty()) {
@@ -28,7 +28,7 @@ p_cube_t SimTop::build_cube(const p_clock_t& clk,
 }
 
 p_mem_t SimTop::build_mem(const p_clock_t& clk) {
-  SystolicConfig cfg;
+  SysConfig cfg;
   std::string err;
   Mem::load_config(config_path_, cfg, &err);
   if (!err.empty()) {
