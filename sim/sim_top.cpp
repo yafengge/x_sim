@@ -3,13 +3,12 @@
 #include <iostream>
 
 SimTop::SimTop(const std::string& config_path)
-  : config_path_(config_path) {
+  : config_path_(config_path), has_override_config_(false) {
   build_all();
 }
 
-SimTop::SimTop(const SysConfig& cfg)
-  : config_path_("config.toml") {
-  (void)cfg;
+SimTop::SimTop(const std::string& config_path, const SysConfig& override_cfg)
+  : config_path_(config_path), has_override_config_(true), override_cfg_(override_cfg) {
   build_all();
 }
 
@@ -18,9 +17,13 @@ p_cube_t SimTop::build_cube(const p_clock_t& clk,
   if (!cube_) {
     SysConfig cfg;
     std::string err;
-    Cube::load_config(config_path_, cfg, &err);
-    if (!err.empty()) {
-      std::cerr << "Cube config load warning: " << err << "\n";
+    if (has_override_config_) {
+      cfg = override_cfg_;
+    } else {
+      Cube::load_config(config_path_, cfg, &err);
+      if (!err.empty()) {
+        std::cerr << "Cube config load warning: " << err << "\n";
+      }
     }
     cube_ = p_cube_t(new Cube(cfg, clk, mem));
   }
@@ -34,9 +37,13 @@ p_clock_t SimTop::build_clk() {
 p_mem_t SimTop::build_mem(const p_clock_t& clk) {
   SysConfig cfg;
   std::string err;
-  Mem::load_config(config_path_, cfg, &err);
-  if (!err.empty()) {
-    std::cerr << "Memory config load warning: " << err << "\n";
+  if (has_override_config_) {
+    cfg = override_cfg_;
+  } else {
+    Mem::load_config(config_path_, cfg, &err);
+    if (!err.empty()) {
+      std::cerr << "Memory config load warning: " << err << "\n";
+    }
   }
 
   int max_outstanding = cfg.max_outstanding > 0 ? cfg.max_outstanding : 0;

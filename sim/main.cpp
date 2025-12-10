@@ -49,7 +49,7 @@ void test_small_matrix(const SysConfig& base_cfg) {
     config.array_cols = 4;
     config.verbose = g_verbose;
     config.trace_cycles = g_trace_cycles;
-    SimTop env(config);
+    SimTop env(g_config_path, config);
     auto array = env.array();
     
     // 定义测试矩阵
@@ -111,7 +111,7 @@ void test_large_matrix(const SysConfig& base_cfg, bool quick=false) {
     config.trace_cycles = g_trace_cycles;
     // show progress every 8 tiles to give user feedback for large runs
     config.progress_interval = quick ? 0 : 8;
-    SimTop env(config);
+    SimTop env(g_config_path, config);
     auto array = env.array();
     
     // 生成随机矩阵
@@ -201,7 +201,7 @@ void test_dataflow_modes(const SysConfig& base_cfg, bool quick=false) {
         config.verbose = g_verbose;
         config.trace_cycles = g_trace_cycles;
         config.dataflow = SysConfig::Dataflow::WEIGHT_STATIONARY;
-        SimTop env(config);
+        SimTop env(g_config_path, config);
         auto array = env.array();
         
         std::vector<int32_t> C;
@@ -237,7 +237,7 @@ void test_scaling(const SysConfig& base_cfg, bool quick=false) {
         config.array_cols = size;
         config.verbose = g_verbose;
         config.trace_cycles = g_trace_cycles;
-        SimTop env(config);
+        SimTop env(g_config_path, config);
         auto array = env.array();
         
         std::vector<int32_t> C;

@@ -12,7 +12,7 @@
 class SimTop {
 public:
     explicit SimTop(const std::string& config_path = "config.toml");
-    explicit SimTop(const SysConfig& cfg);
+    SimTop(const std::string& config_path, const SysConfig& override_cfg);
 
     // 分步构建接口（build_all 创建 clock/mem 后传给 build_cube）
     p_clock_t build_clk();
@@ -35,6 +35,8 @@ public:
 
 private:
     std::string config_path_;
+    bool has_override_config_ = false;
+    SysConfig override_cfg_;
     p_cube_t cube_;
 };
 
