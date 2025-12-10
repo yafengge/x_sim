@@ -1,5 +1,5 @@
 #include "cube.h"
-#include "config_mgr.h"
+#include "config/config_mgr.h"
 #include <stdexcept>
 
 Cube::Cube(const std::string& config_path, p_clock_t external_clock, p_mem_t external_mem)

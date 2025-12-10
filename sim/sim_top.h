@@ -6,7 +6,7 @@
 #include "cube.h"
 #include "clock.h"
 #include "mem_if.h"
-#include "config_mgr.h"
+#include "config/config_mgr.h"
 
 // SimTop 封装顶层构建：clock、memory、cube，提供 build_* 接口便于模块化
 class SimTop {

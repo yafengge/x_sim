@@ -1,6 +1,6 @@
 #include "systolic.h"
 #include "clock.h"
-#include "config_mgr.h"
+#include "config/config_mgr.h"
 #include <iostream>
 #include <fstream>
 #include <iomanip>

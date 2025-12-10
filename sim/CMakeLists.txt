@@ -14,15 +14,15 @@ add_compile_options(-Wall -g -O0)
 
 # Sources (keep in same order as previous Makefile)
 set(SRCS
-    systolic.cpp
-    main.cpp
-    pe.cpp
-    mem_if.cpp
-    clock.cpp
-    cube.cpp
-    sim_top.cpp
-    mini_toml.cpp
-    config_mgr.cpp
+  systolic.cpp
+  main.cpp
+  pe.cpp
+  mem_if.cpp
+  clock.cpp
+  cube.cpp
+  sim_top.cpp
+  config/mini_toml.cpp
+  config/config_mgr.cpp
 )
 
 add_executable(x_sim ${SRCS})

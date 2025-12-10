@@ -1,5 +1,5 @@
 #include "mem_if.h"
-#include "config_mgr.h"
+#include "config/config_mgr.h"
 
 #include <cstddef>
 #include <memory>
