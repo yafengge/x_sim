@@ -1,6 +1,7 @@
 #include "systolic.h"
 #include "cube.h"
 #include "sim_top.h"
+#include "config_loader.h"
 #include <iostream>
 #include <vector>
 #include <random>
@@ -10,6 +11,7 @@
 
 static bool g_verbose = false;
 static int g_trace_cycles = 0;
+static std::string g_config_path = "config.toml";
 
 // 生成随机矩阵
 std::vector<int16_t> generate_random_matrix(int rows, int cols, int min_val = -128, int max_val = 127) {
@@ -38,11 +40,13 @@ void print_matrix(const std::vector<int16_t>& mat, int rows, int cols, const std
 }
 
 // 测试1: 小矩阵功能测试
-void test_small_matrix() {
+void test_small_matrix(const SystolicConfig& base_cfg) {
     std::cout << "=== Test 1: Small Matrix (4x4 * 4x4) ===" << std::endl;
     
     // 创建脉动阵列
-    SystolicConfig config(4, 4);
+    SystolicConfig config = base_cfg;
+    config.array_rows = 4;
+    config.array_cols = 4;
     config.verbose = g_verbose;
     config.trace_cycles = g_trace_cycles;
     SimTop env(config);
@@ -93,14 +97,16 @@ void test_small_matrix() {
 }
 
 // 测试2: 大矩阵性能测试
-void test_large_matrix(bool quick=false) {
+void test_large_matrix(const SystolicConfig& base_cfg, bool quick=false) {
     int M = quick ? 32 : 128;
     int K = M;
     int N = M;
 
     std::cout << "\n=== Test 2: Large Matrix (" << M << "x" << K << " * " << K << "x" << N << ") ===" << std::endl;
     
-    SystolicConfig config(16, 16);  // 16x16 脉动阵列
+    SystolicConfig config = base_cfg;
+    config.array_rows = 16;
+    config.array_cols = 16;  // 16x16 脉动阵列
     config.verbose = g_verbose;
     config.trace_cycles = g_trace_cycles;
     // show progress every 8 tiles to give user feedback for large runs
@@ -177,7 +183,7 @@ void test_large_matrix(bool quick=false) {
 }
 
 // 测试3: 不同数据流模式比较
-void test_dataflow_modes(bool quick=false) {
+void test_dataflow_modes(const SystolicConfig& base_cfg, bool quick=false) {
     std::cout << "\n=== Test 3: Different Dataflow Modes ===" << std::endl;
     
     int M = quick ? 32 : 64;
@@ -189,7 +195,9 @@ void test_dataflow_modes(bool quick=false) {
     // 测试权重固定模式
     {
         std::cout << "\n1. Weight Stationary Mode:" << std::endl;
-        SystolicConfig config(8, 8);
+        SystolicConfig config = base_cfg;
+        config.array_rows = 8;
+        config.array_cols = 8;
         config.verbose = g_verbose;
         config.trace_cycles = g_trace_cycles;
         config.dataflow = SystolicConfig::Dataflow::WEIGHT_STATIONARY;
@@ -210,7 +218,7 @@ void test_dataflow_modes(bool quick=false) {
 }
 
 // 测试4: 不同阵列尺寸的性能缩放
-void test_scaling(bool quick=false) {
+void test_scaling(const SystolicConfig& base_cfg, bool quick=false) {
     std::cout << "\n=== Test 4: Array Size Scaling ===" << std::endl;
     
     int M = quick ? 128 : 256;
@@ -224,7 +232,9 @@ void test_scaling(bool quick=false) {
     for (int size : sizes) {
         std::cout << "\nArray size: " << size << "x" << size << std::endl;
         
-        SystolicConfig config(size, size);
+        SystolicConfig config = base_cfg;
+        config.array_rows = size;
+        config.array_cols = size;
         config.verbose = g_verbose;
         config.trace_cycles = g_trace_cycles;
         SimTop env(config);
@@ -253,8 +263,21 @@ int main(int argc, char** argv) {
         else if (arg.rfind("--trace=", 0) == 0) {
             g_trace_cycles = std::stoi(arg.substr(8));
             if (g_trace_cycles > 0) g_verbose = true;
+        } else if (arg.rfind("--config=", 0) == 0) {
+            g_config_path = arg.substr(9);
         }
     }
+
+    SystolicConfig base_cfg;
+    std::string err;
+    if (!load_config(g_config_path, base_cfg, &err)) {
+        std::cerr << "Failed to load config '" << g_config_path << "': " << err << "\n";
+        std::cerr << "Using default SystolicConfig values." << std::endl;
+    }
+
+    // CLI overrides still apply
+    base_cfg.verbose = g_verbose;
+    base_cfg.trace_cycles = g_trace_cycles;
 
     std::cout << "=== Systolic Array C Model Simulation ===" << std::endl;
     std::cout << "==========================================" << std::endl;
@@ -262,10 +285,10 @@ int main(int argc, char** argv) {
     if (g_trace_cycles > 0) std::cout << "(Trace enabled: first " << g_trace_cycles << " cycles)" << std::endl;
     
     // 运行测试
-   test_small_matrix();
-   test_large_matrix(quick);
-   test_dataflow_modes(quick);
-   test_scaling(quick);
+    test_small_matrix(base_cfg);
+    test_large_matrix(base_cfg, quick);
+    test_dataflow_modes(base_cfg, quick);
+    test_scaling(base_cfg, quick);
     
     std::cout << "\n=== All Tests Completed ===" << std::endl;
     
