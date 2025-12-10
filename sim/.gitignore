@@ -1,6 +1,7 @@
 # Build artifacts
 *.o
-systolic_sim
+
+build/
 
 # Editor directories
 .vscode/
