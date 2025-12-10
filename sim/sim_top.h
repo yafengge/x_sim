@@ -17,8 +17,8 @@ public:
     // 分步构建接口（build_all 创建 clock/mem 后传给 build_cube）
     std::shared_ptr<Mem> build_mem(const std::shared_ptr<Clock>& clk);
 
-    Cube* build_cube(const std::shared_ptr<Clock>& clk,
-                     const std::shared_ptr<Mem>& mem);
+    std::shared_ptr<Cube> build_cube(const std::shared_ptr<Clock>& clk,
+                                     const std::shared_ptr<Mem>& mem);
     void build_all();
 
     // 访问器
@@ -28,8 +28,8 @@ public:
     std::shared_ptr<Mem> memory() { return cube_ ? cube_->memory() : nullptr; }
     std::shared_ptr<const Mem> memory() const { return cube_ ? cube_->memory() : nullptr; }
 
-    Cube* cube() { return cube_.get(); }
-    const Cube* cube() const { return cube_.get(); }
+    std::shared_ptr<Cube> cube() { return cube_; }
+    std::shared_ptr<const Cube> cube() const { return cube_; }
 
     SystolicArray& array() { return cube_->array(); }
     const SystolicArray& array() const { return cube_->array(); }
