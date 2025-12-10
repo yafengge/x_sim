@@ -57,117 +57,18 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
                 std::vector<std::vector<AccType>> acc(m_tile, std::vector<AccType>(n_tile, 0));
 
                 // 计算仿真所需的安全周期数（包含 memory latency 以便数据能到达 FIFO）
-                int total_cycles = k_tile + m_tile + n_tile + config.memory_latency;
 
-                // 为本 tile 创建每行/每列的本地 FIFO（shared_ptr），以便精确把数据注入到对应行/列
-                std::vector<std::shared_ptr<FIFO>> localA;
-                std::vector<std::shared_ptr<FIFO>> localB;
-                for (int i = 0; i < m_tile; ++i) localA.push_back(std::make_shared<FIFO>(k_tile + 4));
-                for (int j = 0; j < n_tile; ++j) localB.push_back(std::make_shared<FIFO>(k_tile + 4));
+                // Create per-tile local FIFOs (unique ownership)
+                std::vector<std::unique_ptr<FIFO>> localA;
+                std::vector<std::unique_ptr<FIFO>> localB;
+                for (int i = 0; i < m_tile; ++i) localA.emplace_back(new FIFO(k_tile + 4));
+                for (int j = 0; j < n_tile; ++j) localB.emplace_back(new FIFO(k_tile + 4));
 
-                // 预加载 A 和 B 到 memory 模型中（A base = 0, B base = A.size()）
-                memory->load_data(A, 0);
-                memory->load_data(B, static_cast<uint32_t>(A.size()));
+                // Prefetch addresses into local FIFOs (issue requests and wait)
+                    prefetch_tile(A, A_cols, B, B_cols, mb, nb, kb, k_tile, localA, localB);
 
-                // 发起对本 tile 所需的所有读请求，目标直接是本地 FIFOs
-                for (int kk = 0; kk < k_tile; kk++) {
-                    int k_idx = kb + kk;
-                    for (int i = 0; i < m_tile; ++i) {
-                        uint32_t addrA = static_cast<uint32_t>((mb + i) * A_cols + (kb + kk));
-                        memory->read_request(addrA, localA[i]);
-                    }
-                    for (int j = 0; j < n_tile; ++j) {
-                        uint32_t addrB = static_cast<uint32_t>((k_idx) * B_cols + (nb + j) + static_cast<uint32_t>(A.size()));
-                        memory->read_request(addrB, localB[j]);
-                    }
-                }
-
-                // 等待本地 FIFOs 填满至少 k_tile 条数据（受 memory latency & bandwidth 影响）
-                int max_wait = 10000;
-                int waited = 0;
-                while (waited < max_wait) {
-                    bool ready = true;
-                    for (int i = 0; i < m_tile; ++i) if (localA[i]->count < k_tile) { ready = false; break; }
-                    for (int j = 0; j < n_tile && ready; ++j) if (localB[j]->count < k_tile) { ready = false; break; }
-                    if (ready) break;
-                    memory->cycle();
-                    stats.total_cycles++; stats.memory_stall_cycles++; current_cycle++; waited++;
-                }
-                if (waited >= max_wait) std::cerr << "Warning: tile preload timeout" << std::endl;
-
-                // 进行仿真处理周期：从本地 FIFOs 逐周期 pop 并 shift-then-mac
-                // 为减少开销：预分配可重用的缓冲并按需清零
-                std::vector<DataType> left_in(m_tile, 0);
-                std::vector<DataType> top_in(n_tile, 0);
-                std::vector<std::vector<DataType>> next_act(m_tile, std::vector<DataType>(n_tile, 0));
-                std::vector<std::vector<DataType>> next_wt(m_tile, std::vector<DataType>(n_tile, 0));
-                std::vector<std::vector<AccType>> next_acc(m_tile, std::vector<AccType>(n_tile, 0));
-
-                for (int t = 0; t < total_cycles; t++) {
-                    // 本周期根据经典注入时序决定哪些行/列需要从本地 FIFO pop
-                    for (int i = 0; i < m_tile; ++i) left_in[i] = 0;
-                    for (int j = 0; j < n_tile; ++j) top_in[j] = 0;
-
-                    for (int i = 0; i < m_tile; ++i) {
-                        int kk_required = t - i;
-                        if (kk_required >= 0 && kk_required < k_tile) {
-                            DataType v;
-                            if (localA[i]->pop(v)) left_in[i] = v;
-                        }
-                    }
-                    for (int j = 0; j < n_tile; ++j) {
-                        int kk_required = t - j;
-                        if (kk_required >= 0 && kk_required < k_tile) {
-                            DataType v;
-                            if (localB[j]->pop(v)) top_in[j] = v;
-                        }
-                    }
-
-                    // 清零重用缓冲区
-                    for (int i = 0; i < m_tile; ++i) {
-                        for (int j = 0; j < n_tile; ++j) {
-                            next_act[i][j] = 0;
-                            next_wt[i][j] = 0;
-                            next_acc[i][j] = 0;
-                        }
-                    }
-
-                    uint64_t macs_this_cycle = 0;
-                    for (int i = 0; i < m_tile; ++i) {
-                        for (int j = 0; j < n_tile; ++j) {
-                            // shift: 激活右移，权重下移
-                            if (j == 0) next_act[i][j] = left_in[i];
-                            else next_act[i][j] = act[i][j-1];
-
-                            if (i == 0) next_wt[i][j] = top_in[j];
-                            else next_wt[i][j] = wt[i-1][j];
-
-                            // MAC
-                            AccType mac = static_cast<AccType>(next_act[i][j]) * static_cast<AccType>(next_wt[i][j]);
-                            next_acc[i][j] = acc[i][j] + mac;
-                            if (next_act[i][j] != 0 && next_wt[i][j] != 0) macs_this_cycle++;
-                        }
-                    }
-
-                    // 同步写回
-                    act.swap(next_act);
-                    wt.swap(next_wt);
-                    acc.swap(next_acc);
-
-                    // 更新统计周期
-                    stats.mac_operations += macs_this_cycle;
-                    stats.total_cycles++;
-                    stats.compute_cycles++;
-                    current_cycle++;
-                }
-
-                // 把 tile 的累加器写回 C
-                for (int i = 0; i < m_tile; ++i) {
-                    for (int j = 0; j < n_tile; ++j) {
-                        int idx = (mb + i) * N + (nb + j);
-                        C[idx] += acc[i][j];
-                    }
-                }
+                    // Run the cycle-accurate processing for this tile and commit results into C
+                    process_tile(localA, localB, mb, nb, m_tile, n_tile, k_tile, A, A_cols, B, B_cols, C, N);
                 // 更新进度计数并按需打印
                 tiles_done++;
                 if (config.progress_interval > 0 && (tiles_done % config.progress_interval) == 0) {
@@ -183,6 +84,125 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
               << " cycles" << std::endl;
 
     return true;
+}
+
+// Helper: prefetch a tile's A/B data into local FIFOs
+void SystolicArray::prefetch_tile(const std::vector<DataType>& A, int A_cols,
+                                  const std::vector<DataType>& B, int B_cols,
+                                  int mb, int nb, int kb, int k_tile,
+                                  std::vector<std::unique_ptr<FIFO>>& localA,
+                                  std::vector<std::unique_ptr<FIFO>>& localB) {
+    // Load backing arrays into memory model (caller may have done this already, but safe)
+    memory->load_data(A, 0);
+    memory->load_data(B, static_cast<uint32_t>(A.size()));
+
+    // Issue read requests for all elements this tile needs
+    for (int kk = 0; kk < k_tile; kk++) {
+        int k_idx = kb + kk;
+        for (int i = 0; i < static_cast<int>(localA.size()); ++i) {
+            uint32_t addrA = static_cast<uint32_t>((mb + i) * A_cols + (kb + kk));
+            memory->read_request(addrA, localA[i].get());
+        }
+        for (int j = 0; j < static_cast<int>(localB.size()); ++j) {
+            uint32_t addrB = static_cast<uint32_t>((k_idx) * B_cols + (nb + j) + static_cast<uint32_t>(A.size()));
+            memory->read_request(addrB, localB[j].get());
+        }
+    }
+
+    // Wait until each local FIFO has at least k_tile values (subject to memory latency/bandwidth)
+    int max_wait = 10000;
+    int waited = 0;
+    int m_tile = static_cast<int>(localA.size());
+    int n_tile = static_cast<int>(localB.size());
+    while (waited < max_wait) {
+        bool ready = true;
+        for (int i = 0; i < m_tile; ++i) if (localA[i]->count < k_tile) { ready = false; break; }
+        for (int j = 0; j < n_tile && ready; ++j) if (localB[j]->count < k_tile) { ready = false; break; }
+        if (ready) break;
+        memory->cycle();
+        stats.total_cycles++; stats.memory_stall_cycles++; current_cycle++; waited++;
+    }
+    if (waited >= max_wait) std::cerr << "Warning: tile preload timeout" << std::endl;
+}
+
+// Helper: process a tile using its local FIFOs and commit results into C
+void SystolicArray::process_tile(std::vector<std::unique_ptr<FIFO>>& localA,
+                                 std::vector<std::unique_ptr<FIFO>>& localB,
+                                 int mb, int nb, int m_tile, int n_tile, int k_tile,
+                                 const std::vector<DataType>& A, int A_cols,
+                                 const std::vector<DataType>& B, int B_cols,
+                                 std::vector<AccType>& C, int N) {
+    // Local registers for the tile
+    std::vector<std::vector<DataType>> act(m_tile, std::vector<DataType>(n_tile, 0));
+    std::vector<std::vector<DataType>> wt(m_tile, std::vector<DataType>(n_tile, 0));
+    std::vector<std::vector<AccType>> acc(m_tile, std::vector<AccType>(n_tile, 0));
+
+    int total_cycles = k_tile + m_tile + n_tile + config.memory_latency;
+
+    // Reusable buffers
+    std::vector<DataType> left_in(m_tile, 0);
+    std::vector<DataType> top_in(n_tile, 0);
+    std::vector<std::vector<DataType>> next_act(m_tile, std::vector<DataType>(n_tile, 0));
+    std::vector<std::vector<DataType>> next_wt(m_tile, std::vector<DataType>(n_tile, 0));
+    std::vector<std::vector<AccType>> next_acc(m_tile, std::vector<AccType>(n_tile, 0));
+
+    for (int t = 0; t < total_cycles; t++) {
+        // reset inputs
+        for (int i = 0; i < m_tile; ++i) left_in[i] = 0;
+        for (int j = 0; j < n_tile; ++j) top_in[j] = 0;
+
+        // Pop from local FIFOs when appropriate according to injection schedule
+        for (int i = 0; i < m_tile; ++i) {
+            int kk_required = t - i;
+            if (kk_required >= 0 && kk_required < k_tile) {
+                DataType v;
+                if (localA[i]->pop(v)) left_in[i] = v;
+            }
+        }
+        for (int j = 0; j < n_tile; ++j) {
+            int kk_required = t - j;
+            if (kk_required >= 0 && kk_required < k_tile) {
+                DataType v;
+                if (localB[j]->pop(v)) top_in[j] = v;
+            }
+        }
+
+        // zero next buffers
+        for (int i = 0; i < m_tile; ++i) for (int j = 0; j < n_tile; ++j) { next_act[i][j]=0; next_wt[i][j]=0; next_acc[i][j]=0; }
+
+        uint64_t macs_this_cycle = 0;
+        for (int i = 0; i < m_tile; ++i) {
+            for (int j = 0; j < n_tile; ++j) {
+                if (j == 0) next_act[i][j] = left_in[i];
+                else next_act[i][j] = act[i][j-1];
+
+                if (i == 0) next_wt[i][j] = top_in[j];
+                else next_wt[i][j] = wt[i-1][j];
+
+                AccType mac = static_cast<AccType>(next_act[i][j]) * static_cast<AccType>(next_wt[i][j]);
+                next_acc[i][j] = acc[i][j] + mac;
+                if (next_act[i][j] != 0 && next_wt[i][j] != 0) macs_this_cycle++;
+            }
+        }
+
+        // commit
+        act.swap(next_act);
+        wt.swap(next_wt);
+        acc.swap(next_acc);
+
+        stats.mac_operations += macs_this_cycle;
+        stats.total_cycles++;
+        stats.compute_cycles++;
+        current_cycle++;
+    }
+
+    // Commit accumulators to C using provided row stride N
+    for (int i = 0; i < m_tile; ++i) {
+        for (int j = 0; j < n_tile; ++j) {
+            int idx = (mb + i) * N + (nb + j);
+            C[idx] += acc[i][j];
+        }
+    }
 }
 
 // ProcessingElement methods implemented in processing_element.cpp
@@ -311,9 +331,9 @@ void SystolicArray::cycle() {
 // ==================== SystolicArray 核心实现 ====================
 SystolicArray::SystolicArray(const SystolicConfig& cfg) 
         : config(cfg),
-            weight_fifo(std::make_shared<FIFO>(16)),
-            activation_fifo(std::make_shared<FIFO>(16)),
-            output_fifo(std::make_shared<FIFO>(16)),
+            weight_fifo(new FIFO(16)),
+            activation_fifo(new FIFO(16)),
+            output_fifo(new FIFO(16)),
             current_state(State::IDLE), current_cycle(0), weight_load_ptr(0),
             activation_load_ptr(0), result_unload_ptr(0), rows_processed(0),
             cols_processed(0) {

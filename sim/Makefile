@@ -1,6 +1,6 @@
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -g -O0
-# 调试模式: CXXFLAGS = -std=c++11 -Wall -g -O0
+CXXFLAGS = -std=c++14 -Wall -g -O0
+# 调试模式: CXXFLAGS = -std=c++14 -Wall -g -O0
 
 TARGET = systolic_sim
 SRCS = systolic.cpp main.cpp processing_element.cpp memory_interface.cpp
@@ -22,11 +22,11 @@ clean:
 run: $(TARGET)
 	./$(TARGET)
 
-debug: CXXFLAGS = -std=c++11 -Wall -g -O0
+debug: CXXFLAGS = -std=c++14 -Wall -g -O0
 debug: clean $(TARGET)
 	gdb ./$(TARGET)
 
-profile: CXXFLAGS = -std=c++11 -Wall -O3 -pg
+profile: CXXFLAGS = -std=c++14 -Wall -O3 -pg
 profile: clean $(TARGET)
 	./$(TARGET)
 	gprof ./$(TARGET) gmon.out > profile.txt
