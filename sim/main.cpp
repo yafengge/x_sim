@@ -92,7 +92,7 @@ void test_small_matrix() {
     std::vector<int32_t> C;
     
     auto start = std::chrono::high_resolution_clock::now();
-    bool success = array->matrix_multiply(A, 4, 4, B, 4, 4, C);
+    bool success = array->matmul(A, 4, 4, B, 4, 4, C);
     auto end = std::chrono::high_resolution_clock::now();
     
     if (success) {
@@ -143,7 +143,7 @@ void test_large_matrix(bool quick=false) {
     std::vector<int32_t> C;
     
     auto start = std::chrono::high_resolution_clock::now();
-    bool success = array->matrix_multiply(A, M, K, B, K, N, C);
+    bool success = array->matmul(A, M, K, B, K, N, C);
     auto end = std::chrono::high_resolution_clock::now();
     
     if (success) {
@@ -218,7 +218,7 @@ void test_dataflow_modes(bool quick=false) {
         
         std::vector<int32_t> C;
         auto start = std::chrono::high_resolution_clock::now();
-        array->matrix_multiply(A, M, K, B, K, N, C);
+        array->matmul(A, M, K, B, K, N, C);
         auto end = std::chrono::high_resolution_clock::now();
         
         array->print_stats();
@@ -250,7 +250,7 @@ void test_scaling(bool quick=false) {
         
         std::vector<int32_t> C;
         auto start = std::chrono::high_resolution_clock::now();
-        array->matrix_multiply(A, M, K, B, K, N, C);
+        array->matmul(A, M, K, B, K, N, C);
         auto end = std::chrono::high_resolution_clock::now();
         
         double utilization = array->get_utilization() * 100;

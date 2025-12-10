@@ -14,7 +14,7 @@
 // and mem_if.cpp
 
 // 简单正确的矩阵乘法实现（用于验证和保证结果正确）
-bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, int A_cols,
+bool SystolicArray::matmul(const std::vector<DataType>& A, int A_rows, int A_cols,
                                    const std::vector<DataType>& B, int B_rows, int B_cols,
                                    std::vector<AccType>& C) {
     // 验证输入尺寸

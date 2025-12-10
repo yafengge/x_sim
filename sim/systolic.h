@@ -95,7 +95,7 @@ private:
     std::vector<std::shared_ptr<std::deque<DataType>>> completionA_pool;
     std::vector<std::shared_ptr<std::deque<DataType>>> completionB_pool;
 
-    // Helpers extracted from matrix_multiply for modularity
+    // Helpers extracted from matmul for modularity
     void prefetch_tile(const std::vector<DataType>& A, int A_cols,
                        const std::vector<DataType>& B, int B_cols,
                        int mb, int nb, int kb, int m_tile, int n_tile, int k_tile,
@@ -122,7 +122,7 @@ public:
     void reset();
     
     // 执行矩阵乘法 C = A * B
-    bool matrix_multiply(const std::vector<DataType>& A, int A_rows, int A_cols,
+    bool matmul(const std::vector<DataType>& A, int A_rows, int A_cols,
                         const std::vector<DataType>& B, int B_rows, int B_cols,
                         std::vector<AccType>& C);
     
