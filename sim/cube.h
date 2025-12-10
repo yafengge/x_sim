@@ -15,17 +15,12 @@ public:
 
     // (Configuration is read on-demand via per-key getters; no in-memory struct)
 
-    // 外部可以驱动同一个时钟
-    p_clock_t clock() { return clock_; }
-    p_clock_t clock() const { return clock_; }
-
     // 访问内部的脉动阵列实例
     SystolicArray& array() { return systolic_; }
     const SystolicArray& array() const { return systolic_; }
 
-    // 访问内存模型
-    p_mem_t memory() { return mem_; }
-    p_mem_t memory() const { return mem_; }
+    // (Clock and memory access are intentionally not exposed here;
+    // callers should hold the handles returned from SimTop::build_*)
 
     // 访问配置
     // Returns config path (file used for configuration)
