@@ -12,18 +12,18 @@ class SimTop {
 public:
     explicit SimTop(const SystolicConfig& cfg);
 
-    // 分步构建接口
-    Clock& build_clock();
-    Mem& build_mem();
+    // 分步构建接口（使用临时变量，统一在 build_cube 调用）
+    std::shared_ptr<Clock> build_clock();
+    std::shared_ptr<Mem> build_mem(const std::shared_ptr<Clock>& clk);
     Cube& build_cube();
     void build_all();
 
     // 访问器
-    std::shared_ptr<Clock> clock() { return clock_; }
-    std::shared_ptr<const Clock> clock() const { return clock_; }
+    std::shared_ptr<Clock> clock() { return cube_ ? cube_->clock() : nullptr; }
+    std::shared_ptr<const Clock> clock() const { return cube_ ? cube_->clock() : nullptr; }
 
-    std::shared_ptr<Mem> memory() { return mem_; }
-    std::shared_ptr<const Mem> memory() const { return mem_; }
+    std::shared_ptr<Mem> memory() { return cube_ ? cube_->memory() : nullptr; }
+    std::shared_ptr<const Mem> memory() const { return cube_ ? cube_->memory() : nullptr; }
 
     Cube& cube() { return *cube_; }
     const Cube& cube() const { return *cube_; }
@@ -35,8 +35,6 @@ public:
 
 private:
     SystolicConfig config_;
-    std::shared_ptr<Clock> clock_;
-    std::shared_ptr<Mem> mem_;
     std::unique_ptr<Cube> cube_;
 };
 
