@@ -50,7 +50,7 @@ void test_small_matrix(const SystolicConfig& base_cfg) {
     config.verbose = g_verbose;
     config.trace_cycles = g_trace_cycles;
     SimTop env(config);
-    auto &array = env.array();
+    auto array = env.array();
     
     // 定义测试矩阵
     std::vector<int16_t> A = {
@@ -70,7 +70,7 @@ void test_small_matrix(const SystolicConfig& base_cfg) {
     std::vector<int32_t> C;
     
     auto start = std::chrono::high_resolution_clock::now();
-    bool success = array.matrix_multiply(A, 4, 4, B, 4, 4, C);
+    bool success = array->matrix_multiply(A, 4, 4, B, 4, 4, C);
     auto end = std::chrono::high_resolution_clock::now();
     
     if (success) {
@@ -89,7 +89,7 @@ void test_small_matrix(const SystolicConfig& base_cfg) {
         }
         
         // 性能统计
-        array.print_stats();
+        array->print_stats();
         
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
         std::cout << "Execution time: " << duration.count() << " us" << std::endl;
@@ -112,7 +112,7 @@ void test_large_matrix(const SystolicConfig& base_cfg, bool quick=false) {
     // show progress every 8 tiles to give user feedback for large runs
     config.progress_interval = quick ? 0 : 8;
     SimTop env(config);
-    auto &array = env.array();
+    auto array = env.array();
     
     // 生成随机矩阵
     std::cout << "Generating random matrices..." << std::endl;
@@ -126,7 +126,7 @@ void test_large_matrix(const SystolicConfig& base_cfg, bool quick=false) {
     std::vector<int32_t> C;
     
     auto start = std::chrono::high_resolution_clock::now();
-    bool success = array.matrix_multiply(A, M, K, B, K, N, C);
+    bool success = array->matrix_multiply(A, M, K, B, K, N, C);
     auto end = std::chrono::high_resolution_clock::now();
     
     if (success) {
@@ -171,7 +171,7 @@ void test_large_matrix(const SystolicConfig& base_cfg, bool quick=false) {
             std::cout << "Full verification skipped in quick mode" << std::endl;
         }
         
-        array.print_stats();
+        array->print_stats();
         
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         std::cout << "Total execution time: " << duration.count() << " ms" << std::endl;
@@ -202,14 +202,14 @@ void test_dataflow_modes(const SystolicConfig& base_cfg, bool quick=false) {
         config.trace_cycles = g_trace_cycles;
         config.dataflow = SystolicConfig::Dataflow::WEIGHT_STATIONARY;
         SimTop env(config);
-        auto &array = env.array();
+        auto array = env.array();
         
         std::vector<int32_t> C;
         auto start = std::chrono::high_resolution_clock::now();
-        array.matrix_multiply(A, M, K, B, K, N, C);
+        array->matrix_multiply(A, M, K, B, K, N, C);
         auto end = std::chrono::high_resolution_clock::now();
         
-        array.print_stats();
+        array->print_stats();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
         std::cout << "Time: " << duration.count() << " us" << std::endl;
     }
@@ -238,14 +238,14 @@ void test_scaling(const SystolicConfig& base_cfg, bool quick=false) {
         config.verbose = g_verbose;
         config.trace_cycles = g_trace_cycles;
         SimTop env(config);
-        auto &array = env.array();
+        auto array = env.array();
         
         std::vector<int32_t> C;
         auto start = std::chrono::high_resolution_clock::now();
-        array.matrix_multiply(A, M, K, B, K, N, C);
+        array->matrix_multiply(A, M, K, B, K, N, C);
         auto end = std::chrono::high_resolution_clock::now();
         
-        double utilization = array.get_utilization() * 100;
+        double utilization = array->get_utilization() * 100;
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         
         std::cout << "Utilization: " << std::fixed << std::setprecision(1) 

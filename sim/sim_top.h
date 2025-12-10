@@ -28,11 +28,13 @@ public:
 
     std::shared_ptr<Cube> cube() { return cube_; }
 
-    SystolicArray* array() { return cube_ ? &cube_->array() : nullptr; }
+    std::shared_ptr<SystolicArray> array() {
+        return cube_ ? std::shared_ptr<SystolicArray>(cube_, &cube_->array()) : nullptr;
+    }
 
 private:
     std::string config_path_;
-    std::unique_ptr<Cube> cube_;
+    std::shared_ptr<Cube> cube_;
 };
 
 #endif // SIM_TOP_H

@@ -9,7 +9,8 @@ SimTop::SimTop(const std::string& config_path)
 
 SimTop::SimTop(const SystolicConfig& cfg)
   : config_path_("config.toml") {
-  build_all(cfg);
+  (void)cfg;
+  build_all();
 }
 
 std::shared_ptr<Cube> SimTop::build_cube(const std::shared_ptr<Clock>& clk,
@@ -21,7 +22,7 @@ std::shared_ptr<Cube> SimTop::build_cube(const std::shared_ptr<Clock>& clk,
     if (!err.empty()) {
       std::cerr << "Cube config load warning: " << err << "\n";
     }
-    cube_ = std::make_unique<Cube>(cfg, clk, mem);
+    cube_ = std::make_shared<Cube>(cfg, clk, mem);
   }
   return cube_;
 }
