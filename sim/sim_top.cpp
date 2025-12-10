@@ -21,35 +21,43 @@ Cube& SimTop::build_cube(const std::shared_ptr<Clock>& clk,
   return *cube_;
 }
 
-void SimTop::build_all() {
+Cube& SimTop::build_cube(const std::shared_ptr<Clock>& clk,
+                         const std::shared_ptr<Mem>& mem) {
   SystolicConfig cfg;
   std::string err;
   Cube::load_config(config_path_, cfg, &err);
-  std::string mem_err;
-  Mem::load_config(config_path_, cfg, &mem_err);
   if (!err.empty()) {
     std::cerr << "Cube config load warning: " << err << "\n";
   }
-  if (!mem_err.empty()) {
-    std::cerr << "Memory config load warning: " << mem_err << "\n";
-  }
-  config_ = cfg;
+  return build_cube(clk, mem, cfg);
+}
 
-  auto clk = std::make_shared<Clock>();
+std::shared_ptr<Mem> SimTop::build_mem(const std::shared_ptr<Clock>& clk,
+                                       const SystolicConfig& cfg) {
   int max_outstanding = cfg.max_outstanding > 0 ? cfg.max_outstanding : 0;
   int issue_bw = cfg.bandwidth;
   int complete_bw = cfg.bandwidth;
-  auto mem = std::make_shared<Mem>(64, cfg.memory_latency, issue_bw, complete_bw, max_outstanding, clk);
-  build_cube(clk, mem, config_);
+  return std::make_shared<Mem>(64, cfg.memory_latency, issue_bw, complete_bw, max_outstanding, clk);
+}
+
+std::shared_ptr<Mem> SimTop::build_mem(const std::shared_ptr<Clock>& clk) {
+  SystolicConfig cfg;
+  std::string err;
+  Mem::load_config(config_path_, cfg, &err);
+  if (!err.empty()) {
+    std::cerr << "Memory config load warning: " << err << "\n";
+  }
+  return build_mem(clk, cfg);
+}
+
+void SimTop::build_all() {
+  auto clk = std::make_shared<Clock>();
+  auto mem = build_mem(clk);
+  build_cube(clk, mem);
 }
 
 void SimTop::build_all(const SystolicConfig& cfg) {
-  config_ = cfg;
-
   auto clk = std::make_shared<Clock>();
-  int max_outstanding = cfg.max_outstanding > 0 ? cfg.max_outstanding : 0;
-  int issue_bw = cfg.bandwidth;
-  int complete_bw = cfg.bandwidth;
-  auto mem = std::make_shared<Mem>(64, cfg.memory_latency, issue_bw, complete_bw, max_outstanding, clk);
-  build_cube(clk, mem, config_);
+  auto mem = build_mem(clk, cfg);
+  build_cube(clk, mem, cfg);
 }
