@@ -7,6 +7,8 @@
 #include <memory>
 #include <deque>
 
+class Clock;
+
 class Mem {
 private:
     std::vector<DataType> memory;
@@ -34,7 +36,8 @@ private:
     std::vector<Request> pending_requests;
 
 public:
-    Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_outstanding = -1);
+    Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_outstanding = -1,
+        std::shared_ptr<Clock> clock = nullptr);
 
     // 向 memory 发起读请求，完成后数据会被 push 到 completion_queue（遵守 max_queue_depth）
     // completion_queue is non-owning; caller must ensure it lives until request completes

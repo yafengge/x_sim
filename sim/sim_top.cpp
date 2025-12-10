@@ -18,7 +18,7 @@ Mem& SimTop::build_mem() {
     int max_outstanding = config_.max_outstanding > 0 ? config_.max_outstanding : 0;
     int issue_bw = config_.bandwidth;
     int complete_bw = config_.bandwidth;
-    mem_ = std::make_shared<Mem>(64, config_.memory_latency, issue_bw, complete_bw, max_outstanding);
+    mem_ = std::make_shared<Mem>(64, config_.memory_latency, issue_bw, complete_bw, max_outstanding, clock_);
   }
   return *mem_;
 }

@@ -2,7 +2,7 @@
 #include <cstddef>
 #include <memory>
 
-Mem::Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_out)
+Mem::Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_out, std::shared_ptr<Clock> /*clock*/)
     : latency(lat),
       issue_bw_read(issue_bw), issue_bw_write(issue_bw),
       complete_bw_read(complete_bw), complete_bw_write(complete_bw),
