@@ -22,17 +22,52 @@ void ProcessingElement::load_weight(DataType w) {
     active = true;
 }
 
+// Prepare inputs for tick-driven execution
+void ProcessingElement::prepare_inputs(DataType act_in, AccType psum_in, DataType weight_in, bool weight_present) {
+    // stage inputs into pipeline registers (do not update visible registers yet)
+    pipeline_reg.activation = act_in;
+    pipeline_reg.partial_sum = psum_in;
+    pipeline_reg.valid = true;
+    // stage weight for this cycle; actual update happens in commit(); record presence
+    pipeline_reg.staged_weight = weight_in;
+    pipeline_reg.staged_weight_valid = weight_present;
+}
+
+// Execute one tick: perform compute based on prepared inputs
+void ProcessingElement::tick() {
+    DataType act_out;
+    AccType psum_out;
+    // use staged inputs; compute and update pipeline_reg but do not make values visible
+    compute_cycle(pipeline_reg.activation, pipeline_reg.partial_sum, act_out, psum_out);
+}
+
+// Commit the staged next-state into visible registers (two-phase commit)
+void ProcessingElement::commit() {
+    if (pipeline_reg.valid) {
+        activation = pipeline_reg.activation;
+        accumulator = pipeline_reg.partial_sum;
+        // apply staged weight if present
+        if (pipeline_reg.staged_weight_valid) {
+            weight = pipeline_reg.staged_weight;
+            weight_valid = true;
+            pipeline_reg.staged_weight_valid = false;
+            pipeline_reg.staged_weight = 0;
+        }
+        pipeline_reg.valid = false;
+    }
+}
+
 void ProcessingElement::compute_cycle(DataType act_in, AccType psum_in,
                                       DataType& act_out, AccType& psum_out) {
     // 传递并转发激活值（右移）：当前周期应将输入激活向右传递
     act_out = act_in;
-    activation = act_in;
 
-    // 正确的MAC计算：使用传入的激活值与本PE的权重相乘
+    // 正确的MAC计算：优先使用本周期阶段性提供的权重（staged），否则使用可见权重
     AccType mac_result = 0;
-    if (weight_valid && activation != 0) {
-        mac_result = static_cast<AccType>(activation) * 
-                     static_cast<AccType>(weight);
+    DataType used_weight = pipeline_reg.staged_weight_valid ? pipeline_reg.staged_weight : weight;
+    bool used_weight_valid = pipeline_reg.staged_weight_valid ? true : weight_valid;
+    if (used_weight_valid && act_in != 0) {
+        mac_result = static_cast<AccType>(act_in) * static_cast<AccType>(used_weight);
     }
 
     // 计算新的部分和并返回给调用者（不在此直接写回累加器，
@@ -40,10 +75,11 @@ void ProcessingElement::compute_cycle(DataType act_in, AccType psum_in,
     AccType new_psum = psum_in + mac_result;
     psum_out = new_psum;
 
-    // 更新流水线寄存器
+    // 更新流水线寄存器（不要直接更新可见寄存器，这将在 commit 阶段进行）
     pipeline_reg.activation = act_in;
     pipeline_reg.partial_sum = new_psum;
-    pipeline_reg.valid = (weight_valid && activation != 0);
+    // mark valid if we have a staged weight or an existing weight and non-zero activation
+    pipeline_reg.valid = ((pipeline_reg.staged_weight_valid || weight_valid) && act_in != 0);
 }
 
 void ProcessingElement::print_state() const {

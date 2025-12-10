@@ -10,6 +10,7 @@
 #include "processing_element.h"
 #include "fifo.h"
 #include "memory_interface.h"
+#include "clock.h"
 
 // 脉动阵列核心
 class SystolicArray {
@@ -36,6 +37,14 @@ private:
 
     State current_state;
     Cycle current_cycle;
+    // global clock for the array; components may register listeners
+    std::unique_ptr<Clock> clock;
+    // listener ids registered with clock (if any)
+    std::size_t mem_listener_id;
+    std::size_t sa_listener_id;
+    std::size_t commit_listener_id;
+    // per-PE listener ids (same layout as pes)
+    std::vector<std::vector<std::size_t>> pe_listener_ids;
     
     // 性能计数器
     struct {

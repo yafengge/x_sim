@@ -17,6 +17,9 @@ private:
         DataType activation;
         AccType partial_sum;
         bool valid;
+        // staged weight for two-phase weight propagation
+        DataType staged_weight;
+        bool staged_weight_valid;
     } pipeline_reg;
 
 public:
@@ -33,6 +36,15 @@ public:
     // 执行一个计算周期
     void compute_cycle(DataType act_in, AccType psum_in,
                        DataType& act_out, AccType& psum_out);
+
+    // New: prepare inputs for a tick-driven compute and perform a tick
+    void prepare_inputs(DataType act_in, AccType psum_in, DataType weight_in, bool weight_present);
+    void tick();
+    // Commit the computed next-state into visible registers (two-phase commit)
+    void commit();
+    // weight accessors for tick-driven mode
+    DataType get_weight() const { return weight; }
+    void set_weight(DataType w) { weight = w; weight_valid = true; }
     
     // 获取当前累加值
     AccType get_accumulator() const { return accumulator; }

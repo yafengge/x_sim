@@ -1,4 +1,5 @@
 #include "systolic.h"
+#include "clock.h"
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -65,10 +66,14 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
                 for (int j = 0; j < n_tile; ++j) localB.emplace_back(new FIFO(k_tile + 4));
 
                 // Prefetch addresses into local FIFOs (issue requests and wait)
-                    prefetch_tile(A, A_cols, B, B_cols, mb, nb, kb, k_tile, localA, localB);
+                prefetch_tile(A, A_cols, B, B_cols, mb, nb, kb, k_tile, localA, localB);
 
-                    // Run the cycle-accurate processing for this tile and commit results into C
-                    process_tile(localA, localB, mb, nb, m_tile, n_tile, k_tile, A, A_cols, B, B_cols, C, N);
+                // Run the cycle-accurate processing for this tile and commit results into C
+                // set controller state so registered SystolicArray::cycle treats these ticks as PROCESSING
+                State prev_state = current_state;
+                current_state = State::PROCESSING;
+                process_tile(localA, localB, mb, nb, m_tile, n_tile, k_tile, A, A_cols, B, B_cols, C, N);
+                current_state = prev_state;
                 // 更新进度计数并按需打印
                 tiles_done++;
                 if (config.progress_interval > 0 && (tiles_done % config.progress_interval) == 0) {
@@ -143,7 +148,7 @@ void SystolicArray::prefetch_tile(const std::vector<DataType>& A, int A_cols,
         for (int i = 0; i < m_tile; ++i) if (localA[i]->count < k_tile) { ready = false; break; }
         for (int j = 0; j < n_tile && ready; ++j) if (localB[j]->count < k_tile) { ready = false; break; }
         if (ready) break;
-        memory->cycle();
+        if (clock) clock->tick();
         // after a memory cycle, try draining again (in case new completions arrived)
         for (int i = 0; i < m_tile; ++i) {
             auto &q = completionA[i];
@@ -160,7 +165,7 @@ void SystolicArray::prefetch_tile(const std::vector<DataType>& A, int A_cols,
             }
         }
 
-        stats.total_cycles++; stats.memory_stall_cycles++; current_cycle++; waited++;
+        waited++;
     }
     if (waited >= max_wait) std::cerr << "Warning: tile preload timeout" << std::endl;
 }
@@ -186,6 +191,14 @@ void SystolicArray::process_tile(std::vector<std::unique_ptr<FIFO>>& localA,
     std::vector<std::vector<DataType>> next_wt(m_tile, std::vector<DataType>(n_tile, 0));
     std::vector<std::vector<AccType>> next_acc(m_tile, std::vector<AccType>(n_tile, 0));
 
+    // initialize PE state for this tile
+    for (int i = 0; i < m_tile; ++i) {
+        for (int j = 0; j < n_tile; ++j) {
+            pes[i][j].set_accumulator(0);
+            pes[i][j].set_activation(0);
+        }
+    }
+
     for (int t = 0; t < total_cycles; t++) {
         // reset inputs
         for (int i = 0; i < m_tile; ++i) left_in[i] = 0;
@@ -197,50 +210,95 @@ void SystolicArray::process_tile(std::vector<std::unique_ptr<FIFO>>& localA,
             if (kk_required >= 0 && kk_required < k_tile) {
                 DataType v;
                 if (localA[i]->pop(v)) left_in[i] = v;
+            } else {
+                // otherwise feed from neighbor's last activation
             }
         }
+        std::vector<char> top_valid(n_tile, 0);
         for (int j = 0; j < n_tile; ++j) {
             int kk_required = t - j;
             if (kk_required >= 0 && kk_required < k_tile) {
                 DataType v;
-                if (localB[j]->pop(v)) top_in[j] = v;
+                if (localB[j]->pop(v)) { top_in[j] = v; top_valid[j] = 1; }
             }
         }
 
-        // zero next buffers
-        for (int i = 0; i < m_tile; ++i) for (int j = 0; j < n_tile; ++j) { next_act[i][j]=0; next_wt[i][j]=0; next_acc[i][j]=0; }
-
-        uint64_t macs_this_cycle = 0;
+        // Prepare inputs for each PE (use current neighbor PE state for inter-PE links)
+        if (m_tile <= 4 && n_tile <= 4 && t < 8) {
+            std::cout << "left_in:";
+            for (int ii = 0; ii < m_tile; ++ii) std::cout << " " << left_in[ii];
+            std::cout << "\n";
+            std::cout << "top_in:";
+            for (int jj = 0; jj < n_tile; ++jj) std::cout << " " << top_in[jj];
+            std::cout << "\n";
+        }
         for (int i = 0; i < m_tile; ++i) {
             for (int j = 0; j < n_tile; ++j) {
-                if (j == 0) next_act[i][j] = left_in[i];
-                else next_act[i][j] = act[i][j-1];
-
-                if (i == 0) next_wt[i][j] = top_in[j];
-                else next_wt[i][j] = wt[i-1][j];
-
-                AccType mac = static_cast<AccType>(next_act[i][j]) * static_cast<AccType>(next_wt[i][j]);
-                next_acc[i][j] = acc[i][j] + mac;
-                if (next_act[i][j] != 0 && next_wt[i][j] != 0) macs_this_cycle++;
+                DataType act_in = 0;
+                AccType psum_in = 0;
+                DataType weight_in = 0;
+                bool weight_present = false;
+                if (j > 0) act_in = pes[i][j-1].get_activation(); else act_in = left_in[i];
+                // psum is the PE's local accumulator (acc += mac each cycle)
+                psum_in = pes[i][j].get_accumulator();
+                if (i > 0) {
+                    weight_in = pes[i-1][j].get_weight();
+                    weight_present = pes[i-1][j].has_weight();
+                } else {
+                    weight_in = top_in[j];
+                    weight_present = top_valid[j];
+                }
+                pes[i][j].prepare_inputs(act_in, psum_in, weight_in, weight_present);
+                if (pes[i][j].has_weight() && act_in != 0) stats.mac_operations++;
             }
         }
 
-        // commit
-        act.swap(next_act);
-        wt.swap(next_wt);
-        acc.swap(next_acc);
+        // Debug trace for small tiles: print staged inputs and PE state around tick
+        bool do_trace = (m_tile <= 4 && n_tile <= 4 && t < 8);
+        if (do_trace) {
+            std::cout << "--- Cycle " << t << " before tick ---" << std::endl;
+            for (int i = 0; i < m_tile; ++i) {
+                for (int j = 0; j < n_tile; ++j) {
+                    std::cout << "PE("<<i<<","<<j<<") weight="<< pes[i][j].get_weight()
+                              << " act="<< pes[i][j].get_activation() << " acc="<< pes[i][j].get_accumulator() << "\n";
+                }
+            }
+        }
 
-        stats.mac_operations += macs_this_cycle;
-        stats.total_cycles++;
+        // Tick the global clock so memory->cycle, PE ticks, and SystolicArray::cycle run in order
+        if (clock) clock->tick();
+
+        if (do_trace) {
+            std::cout << "--- Cycle " << t << " after tick/commit ---" << std::endl;
+            for (int i = 0; i < m_tile; ++i) {
+                for (int j = 0; j < n_tile; ++j) {
+                    std::cout << "PE("<<i<<","<<j<<") weight="<< pes[i][j].get_weight()
+                              << " act="<< pes[i][j].get_activation() << " acc="<< pes[i][j].get_accumulator() << "\n";
+                }
+            }
+        }
+
+        // After tick, collect outputs from bottom row as results for this cycle
+        std::vector<DataType> outputs_collected;
+        for (int j = 0; j < n_tile; ++j) {
+            AccType psum_out = pes[m_tile-1][j].get_accumulator();
+            if (psum_out != 0) outputs_collected.push_back(static_cast<DataType>(psum_out));
+        }
+
+        // Advance stats for compute cycle (controller's cycle will also increment total_cycles)
         stats.compute_cycles++;
-        current_cycle++;
     }
 
-    // Commit accumulators to C using provided row stride N
+    // Commit accumulators from PEs to C using provided row stride N
     for (int i = 0; i < m_tile; ++i) {
         for (int j = 0; j < n_tile; ++j) {
             int idx = (mb + i) * N + (nb + j);
-            C[idx] += acc[i][j];
+            AccType val = pes[i][j].get_accumulator();
+            C[idx] += val;
+            // debug: show committed value
+            if (m_tile <= 4 && n_tile <= 4) {
+                std::cout << "Commit C("<< (mb+i) <<","<<(nb+j)<<") += "<< val <<" -> "<< C[idx] <<"\n";
+            }
         }
     }
 }
@@ -249,10 +307,7 @@ void SystolicArray::process_tile(std::vector<std::unique_ptr<FIFO>>& localA,
 
 // 修正 cycle 函数中的计算部分
 void SystolicArray::cycle() {
-    // 更新内存系统
-    if (memory) {
-        memory->cycle();
-    }
+    // Note: memory is advanced by the global Clock listener; do not call memory->cycle() here.
     
     // 根据状态执行不同操作
     switch (current_state) {
@@ -290,62 +345,9 @@ void SystolicArray::cycle() {
             std::vector<std::vector<AccType>> next_psum(config.array_rows, std::vector<AccType>(config.array_cols, 0));
             std::vector<DataType> outputs_collected;
 
-            for (int i = 0; i < config.array_rows; i++) {
-                for (int j = 0; j < config.array_cols; j++) {
-                    DataType act_in = 0;
-                    AccType psum_in = 0;
-
-                    // 获取输入：激活来自左边，部分和来自上面（均使用本周期开始时的状态）
-                    if (j > 0) {
-                        act_in = pes[i][j-1].get_activation();
-                    } else if (!activation_fifo->empty()) {
-                        activation_fifo->pop(act_in);
-                    }
-
-                    if (i > 0) {
-                        psum_in = pes[i-1][j].get_accumulator();
-                    } else {
-                        psum_in = 0;
-                    }
-
-                    // PE计算（不直接改写PE内部状态）
-                    DataType act_out;
-                    AccType psum_out;
-                    pes[i][j].compute_cycle(act_in, psum_in, act_out, psum_out);
-
-                    // 将激活值安排写入下一列的临时缓冲
-                    if (j < config.array_cols - 1) {
-                        next_act[i][j+1] = act_out;
-                    }
-
-                    // 将部分和安排写入下一行的临时缓冲或收集为输出
-                    if (i < config.array_rows - 1) {
-                        next_psum[i+1][j] = psum_out;
-                    } else {
-                        if (psum_out != 0) outputs_collected.push_back(static_cast<DataType>(psum_out));
-                    }
-
-                    // 统计MAC操作（仍然基于当前周期的输入）
-                    if (pes[i][j].has_weight() && act_in != 0) {
-                        stats.mac_operations++;
-                    }
-                }
-            }
-
-            // 将 next_* 状态写回到PE阵列（同步更新）
-            for (int i = 0; i < config.array_rows; i++) {
-                for (int j = 0; j < config.array_cols; j++) {
-                    pes[i][j].set_activation(next_act[i][j]);
-                    pes[i][j].set_accumulator(next_psum[i][j]);
-                }
-            }
-
-            // 将收集到的输出推入 output_fifo（按注入顺序）
-            for (DataType v : outputs_collected) {
-                output_fifo->push(v);
-            }
-            
-            stats.compute_cycles++;
+            // PROCESSING: now driven by per-PE ticks; here we only handle control-level actions
+            // (weights are loaded in LOADING_WEIGHTS state). In tile-driven runs, process_tile
+            // will prepare PE inputs and call clock->tick() so PEs execute.
             break;
         }
             
@@ -386,15 +388,50 @@ SystolicArray::SystolicArray(const SystolicConfig& cfg)
             pes[i][j] = ProcessingElement(i, j);
         }
     }
+    // prepare pe_listener_ids structure
+    pe_listener_ids.resize(config.array_rows);
+    for (int i = 0; i < config.array_rows; ++i) pe_listener_ids[i].resize(config.array_cols, 0);
     
     // 初始化内存接口（使用 unique_ptr）
     memory = std::unique_ptr<MemoryInterface>(new MemoryInterface(64, config.memory_latency, config.bandwidth));
+    // 初始化时钟并将内存周期行为注册为监听器
+    clock = std::unique_ptr<Clock>(new Clock());
+    // register memory cycle at highest priority (0)
+    mem_listener_id = clock->add_listener([this]() {
+        if (memory) memory->cycle();
+    }, 0);
+    // register PEs at priority 1 (they will run after memory but before controller)
+    for (int i = 0; i < config.array_rows; ++i) {
+        for (int j = 0; j < config.array_cols; ++j) {
+            // capture pointer to PE
+            ProcessingElement* pe = &pes[i][j];
+            pe_listener_ids[i][j] = clock->add_listener([pe]() { pe->tick(); }, 1);
+        }
+    }
+    // register a commit listener at priority 2 to apply staged PE state (two-phase commit)
+    commit_listener_id = clock->add_listener([this]() {
+        for (int ii = 0; ii < config.array_rows; ++ii) {
+            for (int jj = 0; jj < config.array_cols; ++jj) {
+                pes[ii][jj].commit();
+            }
+        }
+    }, 2);
+    // register SystolicArray::cycle to be driven by clock at lower priority (3)
+    sa_listener_id = clock->add_listener([this]() {
+        this->cycle();
+    }, 3);
     
     // 重置统计
     stats = {0, 0, 0, 0, 0};
 }
 
-SystolicArray::~SystolicArray() = default;
+SystolicArray::~SystolicArray() {
+    if (clock) {
+        if (mem_listener_id) clock->remove_listener(mem_listener_id);
+        if (commit_listener_id) clock->remove_listener(commit_listener_id);
+        if (sa_listener_id) clock->remove_listener(sa_listener_id);
+    }
+}
 
 void SystolicArray::reset() {
     for (int i = 0; i < config.array_rows; i++) {
