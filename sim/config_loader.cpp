@@ -79,12 +79,31 @@ bool load_config_sections(const std::string& path, CubeConfig& cube_cfg, MemConf
             return false;
         }
 
-        const bool in_cube = section == Section::Cube && want_cube;
-        const bool in_mem  = section == Section::Memory && want_memory;
-        if (!in_cube && !in_mem) continue; // skip keys outside requested sections
-
         std::string key = trim(line.substr(0, eq));
         std::string val_raw = trim(line.substr(eq + 1));
+
+        // support dotted keys like "cube.array_rows" or "memory.memory_latency"
+        bool has_dot = false;
+        std::string top_key;
+        std::string sub_key;
+        auto dotpos = key.find('.');
+        if (dotpos != std::string::npos) {
+            has_dot = true;
+            top_key = to_lower(trim(key.substr(0, dotpos)));
+            sub_key = trim(key.substr(dotpos + 1));
+        }
+
+        const bool in_cube = ((section == Section::Cube) && want_cube) || (has_dot && top_key == "cube" && want_cube);
+        const bool in_mem  = ((section == Section::Memory) && want_memory) || (has_dot && top_key == "memory" && want_memory);
+        if (!in_cube && !in_mem) continue; // skip keys outside requested sections or unknown prefixes
+
+        // if dotted, prefer the sub_key as the actual key name
+        if (has_dot) key = sub_key;
+        key = to_lower(key);
+        // strip quotes from value if present
+        if (val_raw.size() >= 2 && ((val_raw.front() == '"' && val_raw.back() == '"') || (val_raw.front() == '\'' && val_raw.back() == '\''))) {
+            val_raw = val_raw.substr(1, val_raw.size() - 2);
+        }
         if (val_raw.size() >= 2 && ((val_raw.front() == '"' && val_raw.back() == '"') || (val_raw.front() == '\'' && val_raw.back() == '\''))) {
             val_raw = val_raw.substr(1, val_raw.size() - 2);
         }
