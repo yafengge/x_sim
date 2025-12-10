@@ -13,6 +13,10 @@ void ProcessingElement::reset() {
     accumulator = 0;
     weight_valid = false;
     active = false;
+    pipeline_reg.activation = 0;
+    pipeline_reg.partial_sum = 0;
+    pipeline_reg.staged_weight = 0;
+    pipeline_reg.staged_weight_valid = false;
     pipeline_reg.valid = false;
 }
 
@@ -43,18 +47,18 @@ void ProcessingElement::tick() {
 
 // Commit the staged next-state into visible registers (two-phase commit)
 void ProcessingElement::commit() {
-    if (pipeline_reg.valid) {
-        activation = pipeline_reg.activation;
-        accumulator = pipeline_reg.partial_sum;
-        // apply staged weight if present
-        if (pipeline_reg.staged_weight_valid) {
-            weight = pipeline_reg.staged_weight;
-            weight_valid = true;
-            pipeline_reg.staged_weight_valid = false;
-            pipeline_reg.staged_weight = 0;
-        }
-        pipeline_reg.valid = false;
+    // Always commit staged activation/psum to make sure zeros propagate and
+    // accumulators do not stick across idle cycles.
+    activation = pipeline_reg.activation;
+    accumulator = pipeline_reg.partial_sum;
+    // apply staged weight if present
+    if (pipeline_reg.staged_weight_valid) {
+        weight = pipeline_reg.staged_weight;
+        weight_valid = true;
+        pipeline_reg.staged_weight_valid = false;
+        pipeline_reg.staged_weight = 0;
     }
+    pipeline_reg.valid = false;
 }
 
 void ProcessingElement::compute_cycle(DataType act_in, AccType psum_in,
@@ -78,8 +82,8 @@ void ProcessingElement::compute_cycle(DataType act_in, AccType psum_in,
     // 更新流水线寄存器（不要直接更新可见寄存器，这将在 commit 阶段进行）
     pipeline_reg.activation = act_in;
     pipeline_reg.partial_sum = new_psum;
-    // mark valid if we have a staged weight or an existing weight and non-zero activation
-    pipeline_reg.valid = ((pipeline_reg.staged_weight_valid || weight_valid) && act_in != 0);
+    // keep the valid bit set by prepare_inputs so commit always runs; do not
+    // gate commits on non-zero activations to avoid stuck activations.
 }
 
 void ProcessingElement::print_state() const {

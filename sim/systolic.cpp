@@ -224,7 +224,7 @@ void SystolicArray::process_tile(std::vector<std::unique_ptr<FIFO>>& localA,
         }
 
         // Prepare inputs for each PE (use current neighbor PE state for inter-PE links)
-        if (m_tile <= 4 && n_tile <= 4 && t < 8) {
+        if (config.verbose && m_tile <= 4 && n_tile <= 4 && t < 8) {
             std::cout << "left_in:";
             for (int ii = 0; ii < m_tile; ++ii) std::cout << " " << left_in[ii];
             std::cout << "\n";
@@ -254,7 +254,7 @@ void SystolicArray::process_tile(std::vector<std::unique_ptr<FIFO>>& localA,
         }
 
         // Debug trace for small tiles: print staged inputs and PE state around tick
-        bool do_trace = (m_tile <= 4 && n_tile <= 4 && t < 8);
+        bool do_trace = (config.verbose && m_tile <= 4 && n_tile <= 4 && t < 8);
         if (do_trace) {
             std::cout << "--- Cycle " << t << " before tick ---" << std::endl;
             for (int i = 0; i < m_tile; ++i) {
@@ -295,8 +295,8 @@ void SystolicArray::process_tile(std::vector<std::unique_ptr<FIFO>>& localA,
             int idx = (mb + i) * N + (nb + j);
             AccType val = pes[i][j].get_accumulator();
             C[idx] += val;
-            // debug: show committed value
-            if (m_tile <= 4 && n_tile <= 4) {
+            // debug: show committed value only when verbose is enabled to avoid huge logs
+            if (config.verbose && m_tile <= 4 && n_tile <= 4) {
                 std::cout << "Commit C("<< (mb+i) <<","<<(nb+j)<<") += "<< val <<" -> "<< C[idx] <<"\n";
             }
         }
