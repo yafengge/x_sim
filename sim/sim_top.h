@@ -22,13 +22,6 @@ public:
     
     void build_all();
 
-    // 访问器
-    p_clock_t clock() { return cube_ ? cube_->clock() : nullptr; }
-
-    p_mem_t memory() { return cube_ ? cube_->memory() : nullptr; }
-
-    p_cube_t cube() { return cube_; }
-
     p_systolic_array_t array() {
         return cube_ ? p_systolic_array_t(cube_, &cube_->array()) : nullptr;
     }
