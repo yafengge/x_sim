@@ -13,8 +13,8 @@ SimTop::SimTop(const SystolicConfig& cfg)
   build_all();
 }
 
-std::shared_ptr<Cube> SimTop::build_cube(const std::shared_ptr<Clock>& clk,
-                                         const std::shared_ptr<Mem>& mem) {
+p_cube_t SimTop::build_cube(const p_clock_t& clk,
+                            const p_mem_t& mem) {
   if (!cube_) {
     SystolicConfig cfg;
     std::string err;
@@ -27,7 +27,7 @@ std::shared_ptr<Cube> SimTop::build_cube(const std::shared_ptr<Clock>& clk,
   return cube_;
 }
 
-std::shared_ptr<Mem> SimTop::build_mem(const std::shared_ptr<Clock>& clk) {
+p_mem_t SimTop::build_mem(const p_clock_t& clk) {
   SystolicConfig cfg;
   std::string err;
   Mem::load_config(config_path_, cfg, &err);

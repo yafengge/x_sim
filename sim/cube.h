@@ -10,31 +10,31 @@
 class Cube {
 public:
     explicit Cube(const SystolicConfig& cfg,
-                  std::shared_ptr<Clock> external_clock = nullptr,
-                  std::shared_ptr<Mem> external_mem = nullptr);
+                  p_clock_t external_clock = nullptr,
+                  p_mem_t external_mem = nullptr);
 
     // 加载 cube 配置段
     static bool load_config(const std::string& path, SystolicConfig& cfg, std::string* err = nullptr);
 
     // 外部可以驱动同一个时钟
-    std::shared_ptr<Clock> clock() { return clock_; }
-    std::shared_ptr<const Clock> clock() const { return clock_; }
+    p_clock_t clock() { return clock_; }
+    p_clock_t clock() const { return clock_; }
 
     // 访问内部的脉动阵列实例
     SystolicArray& array() { return systolic_; }
     const SystolicArray& array() const { return systolic_; }
 
     // 访问内存模型
-    std::shared_ptr<Mem> memory() { return mem_; }
-    std::shared_ptr<const Mem> memory() const { return mem_; }
+    p_mem_t memory() { return mem_; }
+    p_mem_t memory() const { return mem_; }
 
     // 访问配置
     const SystolicConfig& config() const { return config_; }
 
 private:
     SystolicConfig config_;
-    std::shared_ptr<Clock> clock_;
-    std::shared_ptr<Mem> mem_;
+    p_clock_t clock_;
+    p_mem_t mem_;
     SystolicArray systolic_;
 };
 

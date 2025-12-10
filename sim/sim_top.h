@@ -15,26 +15,26 @@ public:
     explicit SimTop(const SystolicConfig& cfg);
 
     // 分步构建接口（build_all 创建 clock/mem 后传给 build_cube）
-    std::shared_ptr<Mem> build_mem(const std::shared_ptr<Clock>& clk);
+    p_mem_t build_mem(const p_clock_t& clk);
 
-    std::shared_ptr<Cube> build_cube(const std::shared_ptr<Clock>& clk,
-                                     const std::shared_ptr<Mem>& mem);
+    p_cube_t build_cube(const p_clock_t& clk,
+                        const p_mem_t& mem);
     void build_all();
 
     // 访问器
-    std::shared_ptr<Clock> clock() { return cube_ ? cube_->clock() : nullptr; }
+    p_clock_t clock() { return cube_ ? cube_->clock() : nullptr; }
 
-    std::shared_ptr<Mem> memory() { return cube_ ? cube_->memory() : nullptr; }
+    p_mem_t memory() { return cube_ ? cube_->memory() : nullptr; }
 
-    std::shared_ptr<Cube> cube() { return cube_; }
+    p_cube_t cube() { return cube_; }
 
-    std::shared_ptr<SystolicArray> array() {
-        return cube_ ? std::shared_ptr<SystolicArray>(cube_, &cube_->array()) : nullptr;
+    p_systolic_array_t array() {
+        return cube_ ? p_systolic_array_t(cube_, &cube_->array()) : nullptr;
     }
 
 private:
     std::string config_path_;
-    std::shared_ptr<Cube> cube_;
+    p_cube_t cube_;
 };
 
 #endif // SIM_TOP_H

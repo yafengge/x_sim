@@ -39,7 +39,7 @@ private:
 
 public:
     Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_outstanding = -1,
-        std::shared_ptr<Clock> clock = nullptr);
+        p_clock_t clock = nullptr);
 
     // 加载 memory 配置段
     static bool load_config(const std::string& path, SystolicConfig& cfg, std::string* err = nullptr);

@@ -2,6 +2,13 @@
 #define SYSTOLIC_COMMON_H
 
 #include <cstdint>
+#include <memory>
+
+// Forward declarations for shared pointer aliases
+class Clock;
+class Mem;
+class Cube;
+class SystolicArray;
 
 // 数据类型定义
 typedef int16_t DataType;      // 16位定点数
@@ -36,5 +43,11 @@ struct SystolicConfig {
         max_outstanding(0),
         dataflow(Dataflow::WEIGHT_STATIONARY) {}
 };
+
+// Common pointer aliases
+using p_clock_t = std::shared_ptr<Clock>;
+using p_mem_t = std::shared_ptr<Mem>;
+using p_cube_t = std::shared_ptr<Cube>;
+using p_systolic_array_t = std::shared_ptr<SystolicArray>;
 
 #endif // SYSTOLIC_COMMON_H
