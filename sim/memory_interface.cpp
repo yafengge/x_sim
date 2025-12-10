@@ -57,7 +57,7 @@ void MemoryInterface::cycle() {
             continue;
         } else {
             // 读请求：尝试把数据 push 到 completion_queue（如果给定）
-            std::deque<DataType>* q = it->completion_queue;
+            auto q = it->completion_queue;
             if (q) {
                 if (q->size() < it->max_queue_depth) {
                     q->push_back(memory[it->addr]);
