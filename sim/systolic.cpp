@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cmath>
 #include <map>
+#include <stdexcept>
 
 // Implementations for PE and Mem have been
 // moved to their respective compilation units: pe.cpp
@@ -388,14 +389,10 @@ SystolicArray::SystolicArray(const SysConfig& cfg, p_clock_t external_clock, p_m
     for (int i = 0; i < config.array_rows; ++i) pe_listener_ids[i].resize(config.array_cols, 0);
     
     // 初始化内存接口（使用 unique_ptr）
-    int max_outstanding = config.max_outstanding > 0 ? config.max_outstanding : 0;
-    int issue_bw = config.bandwidth;
-    int complete_bw = config.bandwidth;
-    if (external_mem) {
-        memory = external_mem;
-    } else {
-        memory = p_mem_t(new Mem(64, config.memory_latency, issue_bw, complete_bw, max_outstanding, clock));
+    if (!external_mem) {
+        throw std::invalid_argument("SystolicArray requires external memory; provide via SimTop::build_mem");
     }
+    memory = external_mem;
     // 初始化/绑定时钟并将内存周期行为注册为监听器
     if (external_clock) {
         clock = external_clock;
