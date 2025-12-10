@@ -14,28 +14,28 @@ TEST(Integration, SmallMatrix) {
     std::string cfg = "int_test_config.toml";
     write_config_file(cfg, 4, 4);
     SimTop env(cfg);
-    auto array = env.array();
+    auto cube = env.get_cube();
 
     std::vector<int16_t> A = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
     std::vector<int16_t> B = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
     std::vector<int32_t> C;
 
-    EXPECT_TRUE(array->matmul(A,4,4,B,4,4,C));
-    EXPECT_TRUE(SystolicArray::verify_result(A,4,4,B,4,4,C));
+    EXPECT_TRUE(cube->matmul(A,4,4,B,4,4,C));
+    EXPECT_TRUE(cube->verify_result(A,4,4,B,4,4,C));
 }
 
 TEST(Integration, QuickLarge) {
     std::string cfg = "int_test_config2.toml";
     write_config_file(cfg, 8, 8);
     SimTop env(cfg);
-    auto array = env.array();
+    auto cube = env.get_cube();
 
     int M = 32; int K = 32; int N = 32;
     auto A = generate_random_matrix(M,K);
     auto B = generate_random_matrix(K,N);
     std::vector<int32_t> C;
 
-    EXPECT_TRUE(array->matmul(A,M,K,B,K,N,C));
+    EXPECT_TRUE(cube->matmul(A,M,K,B,K,N,C));
     // Verify a small block to limit cost
     std::vector<int16_t> A_block(4*K);
     std::vector<int16_t> B_block(K*4);
@@ -43,7 +43,7 @@ TEST(Integration, QuickLarge) {
     for (int i=0;i<4;i++) for (int k=0;k<K;k++) A_block[i*K+k]=A[i*K+k];
     for (int k=0;k<K;k++) for (int j=0;j<4;j++) B_block[k*4+j]=B[k*N+j];
     for (int i=0;i<4;i++) for (int j=0;j<4;j++) C_block[i*4+j]=C[i*N+j];
-    EXPECT_TRUE(SystolicArray::verify_result(A_block,4,K,B_block,K,4,C_block));
+    EXPECT_TRUE(cube->verify_result(A_block,4,K,B_block,K,4,C_block));
 }
 
 // Slow / extended tests (disabled by default). Prefix with DISABLED_ so they
@@ -57,9 +57,9 @@ TEST(Integration, DISABLED_DataflowModes) {
     // Weight stationary
     write_config_file(cfg, 8, 8);
     SimTop env_w(cfg);
-    auto arr_w = env_w.array();
+    auto cube_w = env_w.get_cube();
     std::vector<int32_t> Cw;
-    ASSERT_TRUE(arr_w->matmul(A, M, K, B, K, N, Cw));
+    ASSERT_TRUE(cube_w->matmul(A, M, K, B, K, N, Cw));
 
     // Output stationary
     // write different config (dataflow handled via config_mgr if supported)
@@ -67,18 +67,18 @@ TEST(Integration, DISABLED_DataflowModes) {
     out << "[cube]\narray_rows = 8\narray_cols = 8\nverbose = false\nprogress_interval = 0\ndataflow = \"OUTPUT_STATIONARY\"\n";
     out.close();
     SimTop env_o(cfg);
-    auto arr_o = env_o.array();
+    auto cube_o = env_o.get_cube();
     std::vector<int32_t> Co;
-    ASSERT_TRUE(arr_o->matmul(A, M, K, B, K, N, Co));
+    ASSERT_TRUE(cube_o->matmul(A, M, K, B, K, N, Co));
 
     // Input stationary
     std::ofstream out2(cfg);
     out2 << "[cube]\narray_rows = 8\narray_cols = 8\nverbose = false\nprogress_interval = 0\ndataflow = \"INPUT_STATIONARY\"\n";
     out2.close();
     SimTop env_i(cfg);
-    auto arr_i = env_i.array();
+    auto cube_i = env_i.get_cube();
     std::vector<int32_t> Ci;
-    ASSERT_TRUE(arr_i->matmul(A, M, K, B, K, N, Ci));
+    ASSERT_TRUE(cube_i->matmul(A, M, K, B, K, N, Ci));
 }
 
 TEST(Integration, DISABLED_Scaling) {
@@ -91,9 +91,9 @@ TEST(Integration, DISABLED_Scaling) {
     for (int size : sizes) {
         write_config_file(cfg, size, size);
         SimTop env(cfg);
-        auto array = env.array();
+        auto cube = env.get_cube();
         std::vector<int32_t> C;
-        ASSERT_TRUE(array->matmul(A, M, K, B, K, N, C));
+        ASSERT_TRUE(cube->matmul(A, M, K, B, K, N, C));
     }
 }
 

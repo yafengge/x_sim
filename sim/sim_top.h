@@ -26,6 +26,9 @@ public:
         return cube_ ? p_systolic_array_t(cube_, &cube_->array()) : nullptr;
     }
 
+    // Access to the constructed Cube object (may be nullptr until built)
+    p_cube_t get_cube() { return cube_; }
+
 private:
     std::string config_path_;
     p_cube_t cube_;

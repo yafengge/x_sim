@@ -19,6 +19,15 @@ public:
     SystolicArray& array() { return systolic_; }
     const SystolicArray& array() const { return systolic_; }
 
+    // Provide top-level convenience methods that forward to the internal SystolicArray
+    bool matmul(const std::vector<DataType>& A, int A_rows, int A_cols,
+                const std::vector<DataType>& B, int B_rows, int B_cols,
+                std::vector<AccType>& C);
+
+    bool verify_result(const std::vector<DataType>& A, int A_rows, int A_cols,
+                       const std::vector<DataType>& B, int B_rows, int B_cols,
+                       const std::vector<AccType>& C);
+
     // (Clock and memory access are intentionally not exposed here;
     // callers should hold the handles returned from SimTop::build_*)
 
