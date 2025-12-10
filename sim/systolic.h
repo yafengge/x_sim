@@ -17,10 +17,10 @@ private:
     SystolicConfig config;
     std::vector<std::vector<ProcessingElement>> pes;
 
-    // 输入/输出FIFO（使用 shared_ptr 管理，以便 memory 请求可以持有非拥有引用）
-    std::shared_ptr<FIFO> weight_fifo;
-    std::shared_ptr<FIFO> activation_fifo;
-    std::shared_ptr<FIFO> output_fifo;
+    // 输入/输出FIFO（独占所有权，由 SystolicArray 管理）
+    std::unique_ptr<FIFO> weight_fifo;
+    std::unique_ptr<FIFO> activation_fifo;
+    std::unique_ptr<FIFO> output_fifo;
 
     // 内存接口（独占所有权）
     std::unique_ptr<MemoryInterface> memory;
@@ -61,6 +61,20 @@ private:
     // 阵列内部数据移动
     void shift_activations_right();
     void shift_partial_sums_down();
+
+    // Helpers extracted from matrix_multiply for modularity
+    void prefetch_tile(const std::vector<DataType>& A, int A_cols,
+                       const std::vector<DataType>& B, int B_cols,
+                       int mb, int nb, int kb, int k_tile,
+                       std::vector<std::unique_ptr<FIFO>>& localA,
+                       std::vector<std::unique_ptr<FIFO>>& localB);
+
+    void process_tile(std::vector<std::unique_ptr<FIFO>>& localA,
+                      std::vector<std::unique_ptr<FIFO>>& localB,
+                      int mb, int nb, int m_tile, int n_tile, int k_tile,
+                      const std::vector<DataType>& A, int A_cols,
+                      const std::vector<DataType>& B, int B_cols,
+                      std::vector<AccType>& C, int N);
     
 public:
     SystolicArray(const SystolicConfig& cfg);

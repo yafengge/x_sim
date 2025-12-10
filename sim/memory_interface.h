@@ -5,6 +5,7 @@
 #include "fifo.h"
 #include <vector>
 #include <memory>
+#include <deque>
 
 class MemoryInterface {
 private:
@@ -13,7 +14,10 @@ private:
     int bandwidth;
     struct Request {
         uint32_t addr;
-        std::weak_ptr<FIFO> dest; // 非拥有引用到目标 FIFO，当请求完成时将数据 push 到该 FIFO
+        // shared pointer to a completion queue where completed data will be pushed
+        std::shared_ptr<std::deque<DataType>> completion_queue;
+        // maximum allowed elements in the completion queue before we consider it "full"
+        size_t max_queue_depth;
         bool is_write;
         DataType write_data;
         int remaining_cycles;
@@ -23,8 +27,9 @@ private:
 public:
     MemoryInterface(int size_kb, int lat, int bw);
 
-    // 向 memory 发起读请求，完成后数据会被 push 到 dest FIFO（遵守 FIFO 深度）
-    bool read_request(uint32_t addr, std::shared_ptr<FIFO> dest);
+    // 向 memory 发起读请求，完成后数据会被 push 到 completion_queue（遵守 max_queue_depth）
+    // completion_queue is non-owning; caller must ensure it lives until request completes
+    bool read_request(uint32_t addr, std::shared_ptr<std::deque<DataType>> completion_queue, size_t max_queue_depth = SIZE_MAX);
     bool write_request(uint32_t addr, DataType data);
 
     void cycle();  // 每个周期调用

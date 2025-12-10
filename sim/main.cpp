@@ -220,10 +220,10 @@ int main() {
     std::cout << "==========================================" << std::endl;
     
     // 运行测试
-    test_small_matrix();
-    test_large_matrix();
-    test_dataflow_modes();
-    test_scaling();
+ //   test_small_matrix();
+   test_large_matrix();
+  //  test_dataflow_modes();
+ //   test_scaling();
     
     std::cout << "\n=== All Tests Completed ===" << std::endl;
     

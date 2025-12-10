@@ -8,11 +8,12 @@ MemoryInterface::MemoryInterface(int size_kb, int lat, int bw)
     memory.resize(size_kb);
 }
 
-bool MemoryInterface::read_request(uint32_t addr, std::shared_ptr<FIFO> dest) {
+bool MemoryInterface::read_request(uint32_t addr, std::shared_ptr<std::deque<DataType>> completion_queue, size_t max_queue_depth) {
     if (addr >= memory.size()) return false;
     Request req;
     req.addr = addr;
-    req.dest = dest; // stored as weak_ptr
+    req.completion_queue = completion_queue;
+    req.max_queue_depth = max_queue_depth;
     req.is_write = false;
     req.remaining_cycles = latency;
     pending_requests.push_back(req);
@@ -23,7 +24,8 @@ bool MemoryInterface::write_request(uint32_t addr, DataType data) {
     if (addr >= memory.size()) return false;
     Request req;
     req.addr = addr;
-    req.dest.reset();
+    req.completion_queue = std::shared_ptr<std::deque<DataType>>();
+    req.max_queue_depth = 0;
     req.is_write = true;
     req.write_data = data;
     req.remaining_cycles = latency;
@@ -54,16 +56,23 @@ void MemoryInterface::cycle() {
             completed_this_cycle++;
             continue;
         } else {
-            // 读请求：尝试将数据写入目标 FIFO，如果目标 FIFO 满则保留请求
-            std::shared_ptr<FIFO> dest = it->dest.lock();
-            if (dest && !dest->full()) {
-                dest->push(memory[it->addr]);
+            // 读请求：尝试把数据 push 到 completion_queue（如果给定）
+            std::deque<DataType>* q = it->completion_queue;
+            if (q) {
+                if (q->size() < it->max_queue_depth) {
+                    q->push_back(memory[it->addr]);
+                    it = pending_requests.erase(it);
+                    completed_this_cycle++;
+                    continue;
+                } else {
+                    // completion queue 已满，保留请求
+                    ++it;
+                    continue;
+                }
+            } else {
+                // 没有目标队列，丢弃或保留? 目前选择丢弃请求以防止死锁
                 it = pending_requests.erase(it);
                 completed_this_cycle++;
-                continue;
-            } else {
-                // FIFO 满或没有目标，保留
-                ++it;
                 continue;
             }
         }

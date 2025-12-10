@@ -96,30 +96,70 @@ void SystolicArray::prefetch_tile(const std::vector<DataType>& A, int A_cols,
     memory->load_data(A, 0);
     memory->load_data(B, static_cast<uint32_t>(A.size()));
 
-    // Issue read requests for all elements this tile needs
+    // Issue read requests for all elements this tile needs into per-local completion queues.
+    // We'll later drain completion queues into the local FIFOs.
+    std::vector<std::shared_ptr<std::deque<DataType>>> completionA(localA.size());
+    std::vector<std::shared_ptr<std::deque<DataType>>> completionB(localB.size());
+    size_t queue_depth = k_tile + 4;
+
+    for (size_t i = 0; i < completionA.size(); ++i) completionA[i] = std::make_shared<std::deque<DataType>>();
+    for (size_t j = 0; j < completionB.size(); ++j) completionB[j] = std::make_shared<std::deque<DataType>>();
+
     for (int kk = 0; kk < k_tile; kk++) {
         int k_idx = kb + kk;
         for (int i = 0; i < static_cast<int>(localA.size()); ++i) {
             uint32_t addrA = static_cast<uint32_t>((mb + i) * A_cols + (kb + kk));
-            memory->read_request(addrA, localA[i].get());
+            memory->read_request(addrA, completionA[i], queue_depth);
         }
         for (int j = 0; j < static_cast<int>(localB.size()); ++j) {
             uint32_t addrB = static_cast<uint32_t>((k_idx) * B_cols + (nb + j) + static_cast<uint32_t>(A.size()));
-            memory->read_request(addrB, localB[j].get());
+            memory->read_request(addrB, completionB[j], queue_depth);
         }
     }
 
-    // Wait until each local FIFO has at least k_tile values (subject to memory latency/bandwidth)
+    // Wait until each local FIFO has at least k_tile values, by draining completion queues into FIFOs as data arrives
     int max_wait = 10000;
     int waited = 0;
     int m_tile = static_cast<int>(localA.size());
     int n_tile = static_cast<int>(localB.size());
     while (waited < max_wait) {
+        // Drain completion queues into FIFOs
+        for (int i = 0; i < m_tile; ++i) {
+            auto &q = completionA[i];
+            while (q && !q->empty() && !localA[i]->full()) {
+                DataType v = q->front(); q->pop_front();
+                localA[i]->push(v);
+            }
+        }
+        for (int j = 0; j < n_tile; ++j) {
+            auto &q = completionB[j];
+            while (q && !q->empty() && !localB[j]->full()) {
+                DataType v = q->front(); q->pop_front();
+                localB[j]->push(v);
+            }
+        }
+
         bool ready = true;
         for (int i = 0; i < m_tile; ++i) if (localA[i]->count < k_tile) { ready = false; break; }
         for (int j = 0; j < n_tile && ready; ++j) if (localB[j]->count < k_tile) { ready = false; break; }
         if (ready) break;
         memory->cycle();
+        // after a memory cycle, try draining again (in case new completions arrived)
+        for (int i = 0; i < m_tile; ++i) {
+            auto &q = completionA[i];
+            while (q && !q->empty() && !localA[i]->full()) {
+                DataType v = q->front(); q->pop_front();
+                localA[i]->push(v);
+            }
+        }
+        for (int j = 0; j < n_tile; ++j) {
+            auto &q = completionB[j];
+            while (q && !q->empty() && !localB[j]->full()) {
+                DataType v = q->front(); q->pop_front();
+                localB[j]->push(v);
+            }
+        }
+
         stats.total_cycles++; stats.memory_stall_cycles++; current_cycle++; waited++;
     }
     if (waited >= max_wait) std::cerr << "Warning: tile preload timeout" << std::endl;

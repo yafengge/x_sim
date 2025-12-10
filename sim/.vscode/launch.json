@@ -9,7 +9,7 @@
       "stopAtEntry": false,
       "externalConsole": false,
       "cwd": "/home/steven/x_sim/sim",
-      "program": "/home/steven/x_sim/sim/build/Debug/outDebug",
+      "program": "/home/steven/x_sim/sim/systolic_sim",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [
