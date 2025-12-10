@@ -43,14 +43,14 @@ bool parse_int(const std::string& v, int& out) {
     return false;
 }
 
-bool parse_dataflow(const std::string& v, SysConfig::Dataflow& out) {
-    if (v == "WEIGHT_STATIONARY") { out = SysConfig::Dataflow::WEIGHT_STATIONARY; return true; }
-    if (v == "OUTPUT_STATIONARY") { out = SysConfig::Dataflow::OUTPUT_STATIONARY; return true; }
-    if (v == "INPUT_STATIONARY") { out = SysConfig::Dataflow::INPUT_STATIONARY; return true; }
+bool parse_dataflow(const std::string& v, Dataflow& out) {
+    if (v == "WEIGHT_STATIONARY") { out = Dataflow::WEIGHT_STATIONARY; return true; }
+    if (v == "OUTPUT_STATIONARY") { out = Dataflow::OUTPUT_STATIONARY; return true; }
+    if (v == "INPUT_STATIONARY") { out = Dataflow::INPUT_STATIONARY; return true; }
     return false;
 }
 
-bool load_config_sections(const std::string& path, SysConfig& cfg, bool want_cube, bool want_memory, std::string* err) {
+bool load_config_sections(const std::string& path, CubeConfig& cube_cfg, MemConfig& mem_cfg, bool want_cube, bool want_memory, std::string* err) {
     std::ifstream fin(path);
     if (!fin) {
         if (err) *err = "Failed to open config file: " + path;
@@ -89,43 +89,43 @@ bool load_config_sections(const std::string& path, SysConfig& cfg, bool want_cub
             val_raw = val_raw.substr(1, val_raw.size() - 2);
         }
 
-        int iv = 0; bool bv = false; SysConfig::Dataflow df;
+        int iv = 0; bool bv = false; Dataflow df;
 
         if (in_cube) {
             if (key == "array_rows") {
                 if (!parse_int(val_raw, iv)) goto parse_error;
-                cfg.array_rows = iv;
+                cube_cfg.array_rows = iv;
             } else if (key == "array_cols") {
                 if (!parse_int(val_raw, iv)) goto parse_error;
-                cfg.array_cols = iv;
+                cube_cfg.array_cols = iv;
             } else if (key == "pe_latency") {
                 if (!parse_int(val_raw, iv)) goto parse_error;
-                cfg.pe_latency = iv;
+                cube_cfg.pe_latency = iv;
             } else if (key == "progress_interval") {
                 if (!parse_int(val_raw, iv)) goto parse_error;
-                cfg.progress_interval = iv;
+                cube_cfg.progress_interval = iv;
             } else if (key == "verbose") {
                 if (!parse_bool(val_raw, bv)) goto parse_error;
-                cfg.verbose = bv;
+                cube_cfg.verbose = bv;
             } else if (key == "trace_cycles") {
                 if (!parse_int(val_raw, iv)) goto parse_error;
-                cfg.trace_cycles = iv;
+                cube_cfg.trace_cycles = iv;
             } else if (key == "dataflow") {
                 if (!parse_dataflow(val_raw, df)) goto parse_error;
-                cfg.dataflow = df;
+                cube_cfg.dataflow = df;
             } else {
                 // Unknown cube keys ignored
             }
         } else if (in_mem) {
             if (key == "memory_latency") {
                 if (!parse_int(val_raw, iv)) goto parse_error;
-                cfg.memory_latency = iv;
+                mem_cfg.memory_latency = iv;
             } else if (key == "bandwidth") {
                 if (!parse_int(val_raw, iv)) goto parse_error;
-                cfg.bandwidth = iv;
+                mem_cfg.bandwidth = iv;
             } else if (key == "max_outstanding") {
                 if (!parse_int(val_raw, iv)) goto parse_error;
-                cfg.max_outstanding = iv;
+                mem_cfg.max_outstanding = iv;
             } else {
                 // Unknown memory keys ignored
             }
@@ -142,14 +142,16 @@ bool load_config_sections(const std::string& path, SysConfig& cfg, bool want_cub
 
 } // namespace
 
-bool load_config(const std::string& path, SysConfig& cfg, std::string* err) {
-    return load_config_sections(path, cfg, /*want_cube=*/true, /*want_memory=*/true, err);
+bool load_config(const std::string& path, CubeConfig& cube_cfg, MemConfig& mem_cfg, std::string* err) {
+    return load_config_sections(path, cube_cfg, mem_cfg, /*want_cube=*/true, /*want_memory=*/true, err);
 }
 
-bool load_cube_config(const std::string& path, SysConfig& cfg, std::string* err) {
-    return load_config_sections(path, cfg, /*want_cube=*/true, /*want_memory=*/false, err);
+bool load_cube_config(const std::string& path, CubeConfig& cfg, std::string* err) {
+    MemConfig dummy;
+    return load_config_sections(path, cfg, dummy, /*want_cube=*/true, /*want_memory=*/false, err);
 }
 
-bool load_memory_config(const std::string& path, SysConfig& cfg, std::string* err) {
-    return load_config_sections(path, cfg, /*want_cube=*/false, /*want_memory=*/true, err);
+bool load_memory_config(const std::string& path, MemConfig& cfg, std::string* err) {
+    CubeConfig dummy;
+    return load_config_sections(path, dummy, cfg, /*want_cube=*/false, /*want_memory=*/true, err);
 }
