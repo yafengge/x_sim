@@ -17,7 +17,6 @@ void ProcessingElement::reset() {
     pipeline_reg.partial_sum = 0;
     pipeline_reg.staged_weight = 0;
     pipeline_reg.staged_weight_valid = false;
-    pipeline_reg.valid = false;
 }
 
 void ProcessingElement::load_weight(DataType w) {
@@ -31,7 +30,6 @@ void ProcessingElement::prepare_inputs(DataType act_in, AccType psum_in, DataTyp
     // stage inputs into pipeline registers (do not update visible registers yet)
     pipeline_reg.activation = act_in;
     pipeline_reg.partial_sum = psum_in;
-    pipeline_reg.valid = true;
     // stage weight for this cycle; actual update happens in commit(); record presence
     pipeline_reg.staged_weight = weight_in;
     pipeline_reg.staged_weight_valid = weight_present;
@@ -58,7 +56,6 @@ void ProcessingElement::commit() {
         pipeline_reg.staged_weight_valid = false;
         pipeline_reg.staged_weight = 0;
     }
-    pipeline_reg.valid = false;
 }
 
 void ProcessingElement::compute_cycle(DataType act_in, AccType psum_in,

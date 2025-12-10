@@ -16,7 +16,6 @@ private:
     struct {
         DataType activation;
         AccType partial_sum;
-        bool valid;
         // staged weight for two-phase weight propagation
         DataType staged_weight;
         bool staged_weight_valid;

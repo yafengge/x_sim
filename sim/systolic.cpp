@@ -42,6 +42,14 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
                       ((K + config.array_cols - 1) / config.array_cols);
     int tiles_done = 0;
 
+    // 预先将 A/B 放入内存模型，避免每个 tile 重复加载
+    memory->load_data(A, 0);
+    memory->load_data(B, static_cast<uint32_t>(A.size()));
+
+    // 预分配可复用的 FIFO 池，避免每个 tile 反复分配
+    std::vector<FIFO> localA_pool(config.array_rows);
+    std::vector<FIFO> localB_pool(config.array_cols);
+
     // 分块仿真：对每个 tile 做 cycle-accurate 的 systolic 仿真（A 从左注入，B 从上注入）
     for (int mb = 0; mb < M; mb += config.array_rows) {
         int m_tile = std::min(config.array_rows, M - mb);
@@ -52,27 +60,18 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
             for (int kb = 0; kb < K; kb += config.array_cols) {
                 int k_tile = std::min(config.array_cols, K - kb);
 
-                // 本 tile 的本地寄存器：activation 在格子内向右移动，weight 向下移动，acc 为累加器
-                std::vector<std::vector<DataType>> act(m_tile, std::vector<DataType>(n_tile, 0));
-                std::vector<std::vector<DataType>> wt(m_tile, std::vector<DataType>(n_tile, 0));
-                std::vector<std::vector<AccType>> acc(m_tile, std::vector<AccType>(n_tile, 0));
-
-                // 计算仿真所需的安全周期数（包含 memory latency 以便数据能到达 FIFO）
-
-                // Create per-tile local FIFOs (unique ownership)
-                std::vector<std::unique_ptr<FIFO>> localA;
-                std::vector<std::unique_ptr<FIFO>> localB;
-                for (int i = 0; i < m_tile; ++i) localA.emplace_back(new FIFO(k_tile + 4));
-                for (int j = 0; j < n_tile; ++j) localB.emplace_back(new FIFO(k_tile + 4));
+                // 重置并配置可复用 FIFO
+                for (int i = 0; i < m_tile; ++i) localA_pool[i].reset(k_tile + 4);
+                for (int j = 0; j < n_tile; ++j) localB_pool[j].reset(k_tile + 4);
 
                 // Prefetch addresses into local FIFOs (issue requests and wait)
-                prefetch_tile(A, A_cols, B, B_cols, mb, nb, kb, k_tile, localA, localB);
+                prefetch_tile(A, A_cols, B, B_cols, mb, nb, kb, k_tile, localA_pool, localB_pool);
 
                 // Run the cycle-accurate processing for this tile and commit results into C
                 // set controller state so registered SystolicArray::cycle treats these ticks as PROCESSING
                 State prev_state = current_state;
                 current_state = State::PROCESSING;
-                process_tile(localA, localB, mb, nb, m_tile, n_tile, k_tile, A, A_cols, B, B_cols, C, N);
+                process_tile(localA_pool, localB_pool, mb, nb, m_tile, n_tile, k_tile, C, N);
                 current_state = prev_state;
                 // 更新进度计数并按需打印
                 tiles_done++;
@@ -95,12 +94,8 @@ bool SystolicArray::matrix_multiply(const std::vector<DataType>& A, int A_rows, 
 void SystolicArray::prefetch_tile(const std::vector<DataType>& A, int A_cols,
                                   const std::vector<DataType>& B, int B_cols,
                                   int mb, int nb, int kb, int k_tile,
-                                  std::vector<std::unique_ptr<FIFO>>& localA,
-                                  std::vector<std::unique_ptr<FIFO>>& localB) {
-    // Load backing arrays into memory model (caller may have done this already, but safe)
-    memory->load_data(A, 0);
-    memory->load_data(B, static_cast<uint32_t>(A.size()));
-
+                                  std::vector<FIFO>& localA,
+                                  std::vector<FIFO>& localB) {
     // Issue read requests for all elements this tile needs into per-local completion queues.
     // We'll later drain completion queues into the local FIFOs.
     std::vector<std::shared_ptr<std::deque<DataType>>> completionA(localA.size());
@@ -131,37 +126,37 @@ void SystolicArray::prefetch_tile(const std::vector<DataType>& A, int A_cols,
         // Drain completion queues into FIFOs
         for (int i = 0; i < m_tile; ++i) {
             auto &q = completionA[i];
-            while (q && !q->empty() && !localA[i]->full()) {
+            while (q && !q->empty() && !localA[i].full()) {
                 DataType v = q->front(); q->pop_front();
-                localA[i]->push(v);
+                localA[i].push(v);
             }
         }
         for (int j = 0; j < n_tile; ++j) {
             auto &q = completionB[j];
-            while (q && !q->empty() && !localB[j]->full()) {
+            while (q && !q->empty() && !localB[j].full()) {
                 DataType v = q->front(); q->pop_front();
-                localB[j]->push(v);
+                localB[j].push(v);
             }
         }
 
         bool ready = true;
-        for (int i = 0; i < m_tile; ++i) if (localA[i]->count < k_tile) { ready = false; break; }
-        for (int j = 0; j < n_tile && ready; ++j) if (localB[j]->count < k_tile) { ready = false; break; }
+        for (int i = 0; i < m_tile; ++i) if (localA[i].count < k_tile) { ready = false; break; }
+        for (int j = 0; j < n_tile && ready; ++j) if (localB[j].count < k_tile) { ready = false; break; }
         if (ready) break;
         if (clock) clock->tick();
         // after a memory cycle, try draining again (in case new completions arrived)
         for (int i = 0; i < m_tile; ++i) {
             auto &q = completionA[i];
-            while (q && !q->empty() && !localA[i]->full()) {
+            while (q && !q->empty() && !localA[i].full()) {
                 DataType v = q->front(); q->pop_front();
-                localA[i]->push(v);
+                localA[i].push(v);
             }
         }
         for (int j = 0; j < n_tile; ++j) {
             auto &q = completionB[j];
-            while (q && !q->empty() && !localB[j]->full()) {
+            while (q && !q->empty() && !localB[j].full()) {
                 DataType v = q->front(); q->pop_front();
-                localB[j]->push(v);
+                localB[j].push(v);
             }
         }
 
@@ -171,25 +166,15 @@ void SystolicArray::prefetch_tile(const std::vector<DataType>& A, int A_cols,
 }
 
 // Helper: process a tile using its local FIFOs and commit results into C
-void SystolicArray::process_tile(std::vector<std::unique_ptr<FIFO>>& localA,
-                                 std::vector<std::unique_ptr<FIFO>>& localB,
+void SystolicArray::process_tile(std::vector<FIFO>& localA,
+                                 std::vector<FIFO>& localB,
                                  int mb, int nb, int m_tile, int n_tile, int k_tile,
-                                 const std::vector<DataType>& A, int A_cols,
-                                 const std::vector<DataType>& B, int B_cols,
                                  std::vector<AccType>& C, int N) {
-    // Local registers for the tile
-    std::vector<std::vector<DataType>> act(m_tile, std::vector<DataType>(n_tile, 0));
-    std::vector<std::vector<DataType>> wt(m_tile, std::vector<DataType>(n_tile, 0));
-    std::vector<std::vector<AccType>> acc(m_tile, std::vector<AccType>(n_tile, 0));
-
     int total_cycles = k_tile + m_tile + n_tile + config.memory_latency;
 
     // Reusable buffers
     std::vector<DataType> left_in(m_tile, 0);
     std::vector<DataType> top_in(n_tile, 0);
-    std::vector<std::vector<DataType>> next_act(m_tile, std::vector<DataType>(n_tile, 0));
-    std::vector<std::vector<DataType>> next_wt(m_tile, std::vector<DataType>(n_tile, 0));
-    std::vector<std::vector<AccType>> next_acc(m_tile, std::vector<AccType>(n_tile, 0));
 
     // initialize PE state for this tile
     for (int i = 0; i < m_tile; ++i) {
@@ -209,7 +194,7 @@ void SystolicArray::process_tile(std::vector<std::unique_ptr<FIFO>>& localA,
             int kk_required = t - i;
             if (kk_required >= 0 && kk_required < k_tile) {
                 DataType v;
-                if (localA[i]->pop(v)) left_in[i] = v;
+                if (localA[i].pop(v)) left_in[i] = v;
             } else {
                 // otherwise feed from neighbor's last activation
             }
@@ -219,7 +204,7 @@ void SystolicArray::process_tile(std::vector<std::unique_ptr<FIFO>>& localA,
             int kk_required = t - j;
             if (kk_required >= 0 && kk_required < k_tile) {
                 DataType v;
-                if (localB[j]->pop(v)) { top_in[j] = v; top_valid[j] = 1; }
+                if (localB[j].pop(v)) { top_in[j] = v; top_valid[j] = 1; }
             }
         }
 
@@ -279,12 +264,6 @@ void SystolicArray::process_tile(std::vector<std::unique_ptr<FIFO>>& localA,
         }
 
         // After tick, collect outputs from bottom row as results for this cycle
-        std::vector<DataType> outputs_collected;
-        for (int j = 0; j < n_tile; ++j) {
-            AccType psum_out = pes[m_tile-1][j].get_accumulator();
-            if (psum_out != 0) outputs_collected.push_back(static_cast<DataType>(psum_out));
-        }
-
         // Advance stats for compute cycle (controller's cycle will also increment total_cycles)
         stats.compute_cycles++;
     }

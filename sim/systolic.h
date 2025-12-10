@@ -75,14 +75,12 @@ private:
     void prefetch_tile(const std::vector<DataType>& A, int A_cols,
                        const std::vector<DataType>& B, int B_cols,
                        int mb, int nb, int kb, int k_tile,
-                       std::vector<std::unique_ptr<FIFO>>& localA,
-                       std::vector<std::unique_ptr<FIFO>>& localB);
+                       std::vector<FIFO>& localA,
+                       std::vector<FIFO>& localB);
 
-    void process_tile(std::vector<std::unique_ptr<FIFO>>& localA,
-                      std::vector<std::unique_ptr<FIFO>>& localB,
+    void process_tile(std::vector<FIFO>& localA,
+                      std::vector<FIFO>& localB,
                       int mb, int nb, int m_tile, int n_tile, int k_tile,
-                      const std::vector<DataType>& A, int A_cols,
-                      const std::vector<DataType>& B, int B_cols,
                       std::vector<AccType>& C, int N);
     
 public:

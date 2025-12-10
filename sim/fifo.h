@@ -30,6 +30,14 @@ struct FIFO {
         return true;
     }
 
+    // Reset FIFO depth and clear pointers/count.
+    void reset(int new_depth) {
+        depth = new_depth;
+        buffer.assign(depth, 0);
+        read_ptr = write_ptr = 0;
+        count = 0;
+    }
+
     bool empty() const { return count == 0; }
     bool full() const { return count >= depth; }
 };
