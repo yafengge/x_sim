@@ -1,6 +1,5 @@
 #include "util/verify.h"
 
-namespace xsim {
 namespace util {
 
 bool verify_result(const std::vector<DataType>& A, int A_rows, int A_cols,
@@ -59,4 +58,3 @@ bool verify_result(const std::vector<DataType>& A, int A_rows, int A_cols,
 }
 
 } // namespace util
-} // namespace xsim

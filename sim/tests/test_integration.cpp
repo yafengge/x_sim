@@ -48,7 +48,7 @@ TEST(Integration, SmallMatrix) {
     memory->load_data(B, static_cast<uint32_t>(A.size()));
 
     EXPECT_TRUE(cube->matmul(A,4,4,B,4,4,C));
-    EXPECT_TRUE(xsim::util::verify_result(A,4,4,B,4,4,C));
+    EXPECT_TRUE(util::verify_result(A,4,4,B,4,4,C));
 }
 
 // 集成测试：QuickLarge
@@ -69,8 +69,8 @@ TEST(Integration, QuickLarge) {
     auto cube = aic->attach(clk, memory);
 
     int M = 32; int K = 32; int N = 32;
-    auto A = xsim::util::generate_random_matrix(M,K);
-    auto B = xsim::util::generate_random_matrix(K,N);
+    auto A = util::generate_random_matrix(M,K);
+    auto B = util::generate_random_matrix(K,N);
     std::vector<int32_t> C;
 
     // preload into memory model
@@ -85,7 +85,7 @@ TEST(Integration, QuickLarge) {
     for (int i=0;i<4;i++) for (int k=0;k<K;k++) A_block[i*K+k]=A[i*K+k];
     for (int k=0;k<K;k++) for (int j=0;j<4;j++) B_block[k*4+j]=B[k*N+j];
     for (int i=0;i<4;i++) for (int j=0;j<4;j++) C_block[i*4+j]=C[i*N+j];
-    EXPECT_TRUE(xsim::util::verify_result(A_block,4,K,B_block,K,4,C_block));
+    EXPECT_TRUE(util::verify_result(A_block,4,K,B_block,K,4,C_block));
 }
 
 // Slow / extended tests (disabled by default). Prefix with DISABLED_ so they
@@ -98,8 +98,8 @@ TEST(Integration, QuickLarge) {
 TEST(Integration, DataflowModes) {
     std::string cfg = find_config_rel();
     int M = 64, K = 64, N = 64;
-    auto A = xsim::util::generate_random_matrix(M,K);
-    auto B = xsim::util::generate_random_matrix(K,N);
+    auto A = util::generate_random_matrix(M,K);
+    auto B = util::generate_random_matrix(K,N);
 
     
     auto aic_w = std::make_shared<AIC>(cfg);
@@ -111,7 +111,7 @@ TEST(Integration, DataflowModes) {
     memory_w->load_data(B, static_cast<uint32_t>(A.size()));
 
     EXPECT_TRUE(cube_w->matmul(A, M, K, B, K, N, Cw));
-    EXPECT_TRUE(xsim::util::verify_result(A, M, K, B, K, N, Cw));
+    EXPECT_TRUE(util::verify_result(A, M, K, B, K, N, Cw));
 }
 
 
@@ -122,8 +122,8 @@ TEST(Integration, DataflowModes) {
 TEST(Integration, Scaling) {
     std::string cfg = find_config_rel();
     int M = 256, K = 256, N = 256;
-    auto A = xsim::util::generate_random_matrix(M,K);
-    auto B = xsim::util::generate_random_matrix(K,N);
+    auto A = util::generate_random_matrix(M,K);
+    auto B = util::generate_random_matrix(K,N);
 
     // This disabled scaling test previously rewrote the config per-size.
     // Tests must now use the single `config/model.toml`. Keep the test disabled
@@ -138,7 +138,7 @@ TEST(Integration, Scaling) {
     memory->load_data(B, static_cast<uint32_t>(A.size()));
 
     EXPECT_TRUE(cube->matmul(A, M, K, B, K, N, C));
-    EXPECT_TRUE(xsim::util::verify_result(A, M, K, B, K, N, C));
+    EXPECT_TRUE(util::verify_result(A, M, K, B, K, N, C));
 }
 
 // use gtest_main provided by the test target (no explicit main here)

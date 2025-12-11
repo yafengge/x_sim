@@ -5,7 +5,7 @@
 #include <sstream>
 #include <sys/stat.h>
 
-namespace xsim { namespace util {
+namespace util {
 
 std::vector<int16_t> generate_random_matrix(int rows, int cols, int min_val, int max_val) {
     std::random_device rd;
@@ -103,8 +103,9 @@ bool read_case_toml(const std::string& path, CaseMeta& meta) {
     }
     return true;
 
-} } // namespace xsim::util
 
-// Extra close to ensure balanced braces (matches nested closures above)
+} // namespace util
+
+// balance remaining open brace
 }
 
