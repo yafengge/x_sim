@@ -48,7 +48,7 @@ TEST(Integration, SmallMatrix) {
     memory->load_data(B, static_cast<uint32_t>(A.size()));
 
     EXPECT_TRUE(cube->matmul(A,4,4,B,4,4,C));
-    EXPECT_TRUE(verify_result(A,4,4,B,4,4,C));
+    EXPECT_TRUE(xsim::util::verify_result(A,4,4,B,4,4,C));
 }
 
 // 集成测试：QuickLarge
@@ -129,7 +129,7 @@ TEST(Integration, DISABLED_Scaling) {
     // Tests must now use the single `config/model.toml`. Keep the test disabled
     // and exercise a single run using the configured array size.
     AIC aic(cfg);
-    auto clk = aic.build_clk();
+    auto clk = std::make_shared<Clock>();
     auto memory = aic.build_mem(clk);
     auto cube = aic.build_cube(clk, memory);
     
