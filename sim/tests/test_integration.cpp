@@ -103,16 +103,7 @@ TEST(Integration, DISABLED_DataflowModes) {
 // 说明：此测试针对更大的输入（例如 256x256）进行多次仿真，运行时间较长，
 // 因此默认被禁用（以 `DISABLED_` 前缀）。
 TEST(Integration, DISABLED_Scaling) {
-    auto find_config = []() -> std::string {
-        std::vector<std::string> candidates = {
-            std::string("../config.toml"),
-            std::string("config.toml"),
-            std::string("/home/steven/x_sim/sim/config.toml")
-        };
-        for (auto &c : candidates) if (std::filesystem::exists(c)) return c;
-        return std::string("config.toml");
-    };
-    std::string cfg = find_config();
+    std::string cfg = find_config_rel();
     int M = 256, K = 256, N = 256;
     auto A = generate_random_matrix(M,K);
     auto B = generate_random_matrix(K,N);
