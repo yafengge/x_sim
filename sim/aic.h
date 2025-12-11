@@ -19,8 +19,8 @@ public:
                  const p_clock_t& clk,
                  const p_mem_t& mem);
 
-    // Access to the constructed Cube object (may be nullptr until built)
-    p_cube_t get_cube() { return cube_; }
+    // Access to the constructed Cube object has been removed; use AIC::start
+    // to perform runs via the AIC interface.
 
     // Start a matrix multiply run via the attached Cube. Returns false if Cube not attached.
     bool start(const std::vector<DataType>& A, int A_rows, int A_cols,
