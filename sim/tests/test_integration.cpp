@@ -11,6 +11,13 @@
 #include <gtest/gtest.h>
 #include "utils.h"
 #include <filesystem>
+
+// 在测试中统一使用相对路径查找配置文件（不使用绝对路径）
+static std::string find_config_rel() {
+    // 仅使用相对路径指向项目内的配置文件（指向
+    // /home/steven/x_sim/sim/config.toml 的相对路径）
+    return std::string("config.toml");
+}
 // 集成测试：SmallMatrix
 //
 // 目的：使用一个确定性的 4x4 矩阵对验证阵列的基本正确性。
@@ -19,44 +26,16 @@
 // 2. 构建 `AIC` 并获取 `Cube`；
 // 3. 使用已知的 A、B 数据执行 `matmul`，并用软件参考实现 `verify_result` 校验结果。
 TEST(Integration, SmallMatrix) {
-    auto find_config = []() -> std::string {
-        std::vector<std::string> candidates = {
-            std::string("../config.toml"),
-            std::string("config.toml"),
-            std::string("/home/steven/x_sim/sim/config.toml")
-        };
-        for (auto &c : candidates) if (std::filesystem::exists(c)) return c;
-        return std::string("config.toml");
-    };
-    std::string cfg = find_config();
-
-    // Use on-disk case data if present. Case metadata file is named
-    // `case_<casename>_.toml`. If it exists, load the A/B matrices from the
-    // referenced binary files; otherwise create the matrices and write them
-    // to disk for future runs.
-    const std::string casename = "SmallMatrix";
-    const std::string case_toml = "case_" + casename + "_.toml";
-
-    std::vector<int16_t> A;
-    std::vector<int16_t> B;
-    CaseMeta meta;
-    if (read_case_toml(case_toml, meta)) {
-        // load from disk
-        ASSERT_TRUE(read_matrix_bin(meta.a_path, A));
-        ASSERT_TRUE(read_matrix_bin(meta.b_path, B));
-    } else {
-        // generate and save
-        A = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
-        B = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
-        meta.a_path = casename + "_A.bin";
-        meta.b_path = casename + "_B.bin";
-        meta.a_rows = 4; meta.a_cols = 4;
-        meta.b_rows = 4; meta.b_cols = 4;
-        ASSERT_TRUE(write_matrix_bin(meta.a_path, A));
-        ASSERT_TRUE(write_matrix_bin(meta.b_path, B));
-        ASSERT_TRUE(write_case_toml(case_toml, meta));
-    }
-
+    std::string cfg = find_config_rel();
+    // SmallMatrix uses in-memory deterministic matrices (no file IO).
+    std::vector<int16_t> A = {1,2,3,4,
+                              5,6,7,8,
+                              9,10,11,12,
+                              13,14,15,16};
+    std::vector<int16_t> B = {1,0,0,0,
+                              0,1,0,0,
+                              0,0,1,0,
+                              0,0,0,1};
     AIC aic(cfg);
     auto cube = aic.get_cube();
 
@@ -76,16 +55,7 @@ TEST(Integration, SmallMatrix) {
 // 3. 生成随机矩阵 A、B，并调用 `cube->matmul` 执行仿真。
 // 4. 从得到的结果中抽取一个 4x4 子块，用软件实现的乘法进行对比验证。
 TEST(Integration, QuickLarge) {
-    auto find_config = []() -> std::string {
-        std::vector<std::string> candidates = {
-            std::string("../config.toml"),
-            std::string("config.toml"),
-            std::string("/home/steven/x_sim/sim/config.toml")
-        };
-        for (auto &c : candidates) if (std::filesystem::exists(c)) return c;
-        return std::string("config.toml");
-    };
-    std::string cfg = find_config();
+    std::string cfg = find_config_rel();
 
     AIC aic(cfg);
 
@@ -115,16 +85,7 @@ TEST(Integration, QuickLarge) {
 // 说明：该测试较为耗时，会对同一输入在不同 dataflow 配置下运行完整仿真。
 // 默认以 DISABLED_ 前缀禁用；需要时通过 `--gtest_filter` 或取消 DISABLED_ 前缀启用。
 TEST(Integration, DISABLED_DataflowModes) {
-    auto find_config = []() -> std::string {
-        std::vector<std::string> candidates = {
-            std::string("../config.toml"),
-            std::string("config.toml"),
-            std::string("/home/steven/x_sim/sim/config.toml")
-        };
-        for (auto &c : candidates) if (std::filesystem::exists(c)) return c;
-        return std::string("config.toml");
-    };
-    std::string cfg = find_config();
+    std::string cfg = find_config_rel();
     int M = 64, K = 64, N = 64;
     auto A = generate_random_matrix(M,K);
     auto B = generate_random_matrix(K,N);
