@@ -149,10 +149,8 @@ public:
     p_mem_t get_memory() { return memory; }
     p_mem_t get_memory() const { return memory; }
     
-    // 验证功能
-    static bool verify_result(const std::vector<DataType>& A, int A_rows, int A_cols,
-                             const std::vector<DataType>& B, int B_rows, int B_cols,
-                             const std::vector<AccType>& C);
+    // 验证功能已迁移到 util/verify.{h,cpp} 中作为独立工具函数。
+    // 若仍需通过类访问，请使用 SystolicArray::verify_result (已向后兼容直到下一次重大版本移除)。
 };
 
 // 内存模型

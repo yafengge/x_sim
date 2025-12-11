@@ -4,10 +4,16 @@ bool verify_result(const std::vector<DataType>& A, int A_rows, int A_cols,
                    const std::vector<DataType>& B, int B_rows, int B_cols,
                    const std::vector<AccType>& C) {
     if (A_cols != B_rows) return false;
-    
+
     int M = A_rows;
     int N = B_cols;
     int K = A_cols;
+
+    // 参数合法性检查：尺寸必须为正，且输入向量长度匹配
+    if (M <= 0 || N <= 0 || K <= 0) return false;
+    if ((int)A.size() != M * K) return false;
+    if ((int)B.size() != K * N) return false;
+    if ((int)C.size() != M * N) return false;
     
     // 软件计算参考结果
     std::vector<AccType> ref(M * N, 0);

@@ -537,10 +537,6 @@ void SystolicArray::load_config_cache() {
 // Forward verify_result to the standalone utility implementation.
 #include "util/verify.h"
 
-bool SystolicArray::verify_result(const std::vector<DataType>& A, int A_rows, int A_cols,
-                                 const std::vector<DataType>& B, int B_rows, int B_cols,
-                                 const std::vector<AccType>& C) {
-    return ::verify_result(A, A_rows, A_cols, B, B_rows, B_cols, C);
-}
+// Note: verification is provided by the standalone utility in util/verify.{h,cpp}.
 
 // (之前在文件顶部已实现 Mem)
