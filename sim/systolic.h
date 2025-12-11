@@ -165,12 +165,7 @@ public:
     DoubleBufferedMemory(int size);
     
     void switch_bank() { active_bank = !active_bank; }
-    std::vector<DataType>& get_active_bank() { 
-        return active_bank ? bank_a : bank_b; 
-    }
-    std::vector<DataType>& get_inactive_bank() { 
-        return active_bank ? bank_b : bank_a; 
-    }
+    // Buffer accessors removed: not used in project API surface.
     
     void load_data(const std::vector<DataType>& data, int offset);
     std::vector<DataType> read_data(int offset, int size) const;
