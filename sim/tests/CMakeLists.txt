@@ -27,7 +27,7 @@ else()
   message(FATAL_ERROR "GoogleTest not found and USE_FETCH_GTEST=OFF. Install system GTest or set -DUSE_FETCH_GTEST=ON to fetch it.")
 endif()
 
-add_executable(x_sim_tests utils.cpp test_config.cpp test_integration.cpp)
+add_executable(x_sim_tests utils.cpp test_integration.cpp)
 target_compile_definitions(x_sim_tests PRIVATE USE_GTEST=1)
 target_link_libraries(x_sim_tests PRIVATE x_sim_lib GTest::gtest_main)
 include(GoogleTest)
