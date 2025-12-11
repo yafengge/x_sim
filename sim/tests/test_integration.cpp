@@ -14,9 +14,8 @@
 
 // 在测试中统一使用相对路径查找配置文件（不使用绝对路径）
 static std::string find_config_rel() {
-    // 仅使用相对路径指向项目内的配置文件（指向
-    // /home/steven/x_sim/sim/config.toml 的相对路径）
-    return std::string("config.toml");
+    // 仅使用相对路径指向项目内的配置文件（指向仓库中的 `model.toml`）
+    return std::string("model.toml");
 }
 // 集成测试：SmallMatrix
 //
@@ -109,7 +108,7 @@ TEST(Integration, DISABLED_Scaling) {
     auto B = generate_random_matrix(K,N);
 
     // This disabled scaling test previously rewrote the config per-size.
-    // Tests must now use the single `config.toml`. Keep the test disabled
+    // Tests must now use the single `model.toml`. Keep the test disabled
     // and exercise a single run using the configured array size.
     AIC aic(cfg);
     auto cube = aic.get_cube();
