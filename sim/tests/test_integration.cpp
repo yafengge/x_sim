@@ -85,8 +85,11 @@ TEST(Integration, SmallMatrix) {
     memory->load_data(A, case_cfg.a_addr);
     memory->load_data(B, case_cfg.b_addr);
 
-    auto ret = aic->start(A,4,4,B,4,4,C);
+    auto ret = aic->start(case_toml);
     EXPECT_TRUE(ret);
+    // Read C_out produced by AIC and verify
+    bool rc = util::read_bin_int32(case_cfg.c_out_path, C);
+    EXPECT_TRUE(rc);
     EXPECT_TRUE(util::verify_result(A,4,4,B,4,4,C));
 }
 
@@ -142,15 +145,21 @@ TEST(Integration, QuickLarge) {
 
     auto ret = aic->start(case_toml);
     EXPECT_TRUE(ret);
-    // Read C_out produced by AIC and verify a small block to limit cost
+    // Read C_out produced by AIC and verify a small block to limit cost.
+    // To avoid any in-memory vs file inconsistencies, read A/B back from the
+    // case binaries and compute the reference from those.
     std::vector<int32_t> C;
     bool rc = util::read_bin_int32(case_cfg.c_out_path, C);
     EXPECT_TRUE(rc);
+    std::vector<int16_t> A_file;
+    std::vector<int16_t> B_file;
+    EXPECT_TRUE(util::read_bin_int16(case_cfg.a_path, A_file));
+    EXPECT_TRUE(util::read_bin_int16(case_cfg.b_path, B_file));
     std::vector<int16_t> A_block(4*K);
     std::vector<int16_t> B_block(K*4);
     std::vector<int32_t> C_block(16);
-    for (int i=0;i<4;i++) for (int k=0;k<K;k++) A_block[i*K+k]=A[i*K+k];
-    for (int k=0;k<K;k++) for (int j=0;j<4;j++) B_block[k*4+j]=B[k*N+j];
+    for (int i=0;i<4;i++) for (int k=0;k<K;k++) A_block[i*K+k]=A_file[i*K+k];
+    for (int k=0;k<K;k++) for (int j=0;j<4;j++) B_block[k*4+j]=B_file[k*N+j];
     for (int i=0;i<4;i++) for (int j=0;j<4;j++) C_block[i*4+j]=C[i*N+j];
     EXPECT_TRUE(util::verify_result(A_block,4,K,B_block,K,4,C_block));
 }
