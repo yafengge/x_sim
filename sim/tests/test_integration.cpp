@@ -10,6 +10,7 @@
 
 #include <gtest/gtest.h>
 #include "utils.h"
+#include "util/verify.h"
 #include <filesystem>
 
 // 在测试中统一使用相对路径查找配置文件（不使用绝对路径）
@@ -47,7 +48,7 @@ TEST(Integration, SmallMatrix) {
     memory->load_data(B, static_cast<uint32_t>(A.size()));
 
     EXPECT_TRUE(cube->matmul(A,4,4,B,4,4,C));
-    EXPECT_TRUE(cube->verify_result(A,4,4,B,4,4,C));
+    EXPECT_TRUE(verify_result(A,4,4,B,4,4,C));
 }
 
 // 集成测试：QuickLarge
@@ -84,7 +85,7 @@ TEST(Integration, QuickLarge) {
     for (int i=0;i<4;i++) for (int k=0;k<K;k++) A_block[i*K+k]=A[i*K+k];
     for (int k=0;k<K;k++) for (int j=0;j<4;j++) B_block[k*4+j]=B[k*N+j];
     for (int i=0;i<4;i++) for (int j=0;j<4;j++) C_block[i*4+j]=C[i*N+j];
-    EXPECT_TRUE(cube->verify_result(A_block,4,K,B_block,K,4,C_block));
+    EXPECT_TRUE(verify_result(A_block,4,K,B_block,K,4,C_block));
 }
 
 // Slow / extended tests (disabled by default). Prefix with DISABLED_ so they
@@ -108,8 +109,9 @@ TEST(Integration, DISABLED_DataflowModes) {
     std::vector<int32_t> Cw;
     memory_w->load_data(A, 0);
     memory_w->load_data(B, static_cast<uint32_t>(A.size()));
+
     EXPECT_TRUE(cube_w->matmul(A, M, K, B, K, N, Cw));
-    EXPECT_TRUE(cube_w->verify_result(A, M, K, B, K, N, Cw));
+    EXPECT_TRUE(verify_result(A, M, K, B, K, N, Cw));
 }
 
 // 慢速/扩展测试：DISABLED_Scaling
@@ -130,11 +132,13 @@ TEST(Integration, DISABLED_Scaling) {
     auto clk = aic.build_clk();
     auto memory = aic.build_mem(clk);
     auto cube = aic.build_cube(clk, memory);
+    
     std::vector<int32_t> C;
     memory->load_data(A, 0);
     memory->load_data(B, static_cast<uint32_t>(A.size()));
+
     EXPECT_TRUE(cube->matmul(A, M, K, B, K, N, C));
-    EXPECT_TRUE(cube->verify_result(A, M, K, B, K, N, C));
+    EXPECT_TRUE(verify_result(A, M, K, B, K, N, C));
 }
 
 // use gtest_main provided by the test target (no explicit main here)
