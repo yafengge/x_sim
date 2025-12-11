@@ -20,6 +20,7 @@ set(SRCS_LIB
     cube.cpp
     util/verify.cpp
     util/utils.cpp
+    util/case_io.cpp
     aic.cpp
     config/mini_toml.cpp
     config/config_mgr.cpp
@@ -27,6 +28,8 @@ set(SRCS_LIB
 
 add_library(x_sim_lib ${SRCS_LIB})
 target_include_directories(x_sim_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+# Expose project source dir to code so tests can write artifacts into source tree
+target_compile_definitions(x_sim_lib PUBLIC PROJECT_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 enable_testing()
 

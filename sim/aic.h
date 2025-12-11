@@ -21,7 +21,8 @@ public:
                  const p_mem_t& mem);
 
     // Configure and construct the Cube using the given config path.
-    void build(const std::string& config_path);
+    // If `force` is true, reinitialize the Cube even if the config matches.
+    void build(const std::string& config_path, bool force = false);
 
     // Access to the constructed Cube object has been removed; use AIC::start
     // to perform runs via the AIC interface.
@@ -30,6 +31,13 @@ public:
     bool start(const std::vector<DataType>& A, int A_rows, int A_cols,
                const std::vector<DataType>& B, int B_rows, int B_cols,
                std::vector<AccType>& C);
+
+    // Start a run using a per-case TOML. The TOML describes input binary files
+    // and addresses as well as the golden output path. The A/B files will be
+    // loaded by AIC (from disk) and the resulting C will be written to the
+    // configured output path; if a golden exists it will be compared and
+    // differences printed.
+    bool start(const std::string &case_toml_path);
 
 private:
     // configuration path (set via build)

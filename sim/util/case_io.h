@@ -33,8 +33,9 @@ bool read_bin_int32(const std::string &path, std::vector<int32_t> &v);
 // convenience wrapper for int32 write used by AIC
 bool write_bin_int32_from_acc(const std::string &path, const std::vector<AccType> &v);
 
-// write a TOML file for the case
-bool write_case_toml(const CaseConfig &cfg);
+// write a TOML file for the case. This updates `cfg` to contain the
+// absolute paths actually written so callers can reuse them.
+bool write_case_toml(CaseConfig &cfg);
 // read an existing TOML file into CaseConfig
 bool read_case_toml(const std::string &path, CaseConfig &out);
 

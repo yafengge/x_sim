@@ -4,7 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstring>
-#include <unordered_map>
+#include <filesystem>
 
 namespace util {
 
@@ -53,21 +53,48 @@ bool read_bin_int32(const std::string &path, std::vector<int32_t> &v) {
 }
 
 // Very small TOML writer for our case format.
-bool write_case_toml(const CaseConfig &cfg) {
+bool write_case_toml(CaseConfig &cfg) {
+    // Ensure the directory for the TOML exists.
+    try {
+        std::filesystem::path case_p(cfg.case_path);
+        if (case_p.has_parent_path()) std::filesystem::create_directories(case_p.parent_path());
+    } catch (...) {
+        // ignore directory creation errors; writing will fail below if necessary
+    }
+
     std::ofstream ofs(cfg.case_path);
     if (!ofs) return false;
+
+    // Write absolute paths for the binaries so the TOML is not dependent on
+    // the current working directory when consumed later.
+    std::filesystem::path a_p = std::filesystem::absolute(cfg.a_path);
+    std::filesystem::path b_p = std::filesystem::absolute(cfg.b_path);
+    std::filesystem::path cgold_p = std::filesystem::absolute(cfg.c_golden_path);
+    std::filesystem::path cout_p = std::filesystem::absolute(cfg.c_out_path);
+
+    // Update cfg to point to the absolute paths we wrote so callers can use
+    // them directly without guessing about working directories.
+    cfg.a_path = a_p.string();
+    cfg.b_path = b_p.string();
+    cfg.c_golden_path = cgold_p.string();
+    cfg.c_out_path = cout_p.string();
+    try {
+        cfg.case_path = std::filesystem::absolute(cfg.case_path).string();
+    } catch(...) {
+        // ignore
+    }
     ofs << "# case toml generated\n";
     ofs << "[input.A]\n";
-    ofs << "path = \"" << cfg.a_path << "\"\n";
+    ofs << "path = \"" << a_p.string() << "\"\n";
     ofs << "addr = " << cfg.a_addr << "\n";
     ofs << "type = \"" << cfg.a_type << "\"\n";
     ofs << "[input.B]\n";
-    ofs << "path = \"" << cfg.b_path << "\"\n";
+    ofs << "path = \"" << b_p.string() << "\"\n";
     ofs << "addr = " << cfg.b_addr << "\n";
     ofs << "type = \"" << cfg.b_type << "\"\n";
     ofs << "[output.C]\n";
-    ofs << "golden = \"" << cfg.c_golden_path << "\"\n";
-    ofs << "out = \"" << cfg.c_out_path << "\"\n";
+    ofs << "golden = \"" << cgold_p.string() << "\"\n";
+    ofs << "out = \"" << cout_p.string() << "\"\n";
     ofs << "addr = " << cfg.c_addr << "\n";
     ofs << "type = \"" << cfg.c_type << "\"\n";
     ofs << "[meta]\n";
@@ -78,45 +105,8 @@ bool write_case_toml(const CaseConfig &cfg) {
     return ofs.good();
 }
 
-// Very small TOML reader that looks for the keys we wrote above. Not a full TOML parser.
-static bool extract_string(const std::string &line, const std::string &key, std::string &out) {
-    auto pos = line.find(key);
-    if (pos == std::string::npos) return false;
-    auto eq = line.find('=', pos);
-    if (eq == std::string::npos) return false;
-    auto first = line.find('"', eq);
-    if (first == std::string::npos) return false;
-    auto second = line.find('"', first + 1);
-    if (second == std::string::npos) return false;
-    out = line.substr(first + 1, second - first - 1);
-    return true;
-}
-
-static bool extract_uint(const std::string &line, const std::string &key, uint32_t &out) {
-    auto pos = line.find(key);
-    if (pos == std::string::npos) return false;
-    auto eq = line.find('=', pos);
-    if (eq == std::string::npos) return false;
-    std::string val = line.substr(eq + 1);
-    std::istringstream iss(val);
-    uint32_t v; iss >> v;
-    if (iss.fail()) return false;
-    out = v;
-    return true;
-}
-
-static bool extract_int(const std::string &line, const std::string &key, int &out) {
-    auto pos = line.find(key);
-    if (pos == std::string::npos) return false;
-    auto eq = line.find('=', pos);
-    if (eq == std::string::npos) return false;
-    std::string val = line.substr(eq + 1);
-    std::istringstream iss(val);
-    int v; iss >> v;
-    if (iss.fail()) return false;
-    out = v;
-    return true;
-}
+// read_case_toml uses the project's mini TOML parser (parse_toml_file)
+// to extract keys; we do not need ad-hoc line-based parsers here.
 
 bool read_case_toml(const std::string &path, CaseConfig &out) {
     // Use the project's mini TOML parser for robust key extraction.
@@ -133,6 +123,32 @@ bool read_case_toml(const std::string &path, CaseConfig &out) {
     out.b_path = get("input.b.path");
     out.c_golden_path = get("output.c.golden");
     out.c_out_path = get("output.c.out");
+    // If TOML uses relative paths, resolve them against PROJECT_SRC_DIR so
+    // tests and AIC can find files regardless of the current working dir.
+    try {
+        if (!out.a_path.empty()) {
+            std::filesystem::path p(out.a_path);
+            if (p.is_relative()) out.a_path = (std::filesystem::path(PROJECT_SRC_DIR) / p).string();
+        }
+        if (!out.b_path.empty()) {
+            std::filesystem::path p(out.b_path);
+            if (p.is_relative()) out.b_path = (std::filesystem::path(PROJECT_SRC_DIR) / p).string();
+        }
+        if (!out.c_golden_path.empty()) {
+            std::filesystem::path p(out.c_golden_path);
+            if (p.is_relative()) out.c_golden_path = (std::filesystem::path(PROJECT_SRC_DIR) / p).string();
+        }
+        if (!out.c_out_path.empty()) {
+            std::filesystem::path p(out.c_out_path);
+            if (p.is_relative()) out.c_out_path = (std::filesystem::path(PROJECT_SRC_DIR) / p).string();
+        }
+        // make case_path absolute as well
+        std::filesystem::path cp(path);
+        if (cp.is_relative()) out.case_path = (std::filesystem::path(PROJECT_SRC_DIR) / cp).string();
+        else out.case_path = path;
+    } catch(...) {
+        // ignore filesystem errors; keep original values if resolution fails
+    }
     auto sa = get("input.a.addr"); if (!sa.empty()) out.a_addr = static_cast<uint32_t>(std::stoul(sa));
     auto sb = get("input.b.addr"); if (!sb.empty()) out.b_addr = static_cast<uint32_t>(std::stoul(sb));
     auto sc = get("output.c.addr"); if (!sc.empty()) out.c_addr = static_cast<uint32_t>(std::stoul(sc));

@@ -72,6 +72,38 @@ TEST(Integration, SmallMatrix) {
         // write toml
         util::write_case_toml(case_cfg);
     }
+    else {
+        // If TOML exists but binaries were not generated in the source tree (e.g., a
+        // previous run created only the TOML), make sure the A/B/golden files exist
+        // so AIC::start can read them. We prefer not to overwrite existing binaries.
+        auto resolve_write = [&](const std::string &path)->std::string {
+            std::filesystem::path p(path);
+            if (p.is_absolute()) return path;
+            return std::string(PROJECT_SRC_DIR) + std::string("/") + path;
+        };
+        std::string a_out = resolve_write(case_cfg.a_path);
+        std::string b_out = resolve_write(case_cfg.b_path);
+        std::string cgold_out = resolve_write(case_cfg.c_golden_path);
+        if (!std::filesystem::exists(a_out)) {
+            util::write_bin_int16(a_out, A);
+        }
+        if (!std::filesystem::exists(b_out)) {
+            util::write_bin_int16(b_out, B);
+        }
+        if (!std::filesystem::exists(cgold_out)) {
+            std::vector<int32_t> Cgold(case_cfg.M * case_cfg.N, 0);
+            for (int i = 0; i < case_cfg.M; ++i) {
+                for (int j = 0; j < case_cfg.N; ++j) {
+                    int32_t acc = 0;
+                    for (int k = 0; k < case_cfg.K; ++k) {
+                        acc += static_cast<int32_t>(A[i*case_cfg.K + k]) * static_cast<int32_t>(B[k*case_cfg.N + j]);
+                    }
+                    Cgold[i*case_cfg.N + j] = acc;
+                }
+            }
+            util::write_bin_int32(cgold_out, Cgold);
+        }
+    }
 
     auto clk = std::make_shared<Clock>();
     auto memory = std::make_shared<Mem>(clk, std::string("model_cfg.toml"));
@@ -80,10 +112,8 @@ TEST(Integration, SmallMatrix) {
 
     std::vector<int32_t> C;
 
-    // preload A/B into memory model per-test using addresses declared in case toml
-    // If case_cfg was read, use its addresses; otherwise we set default addresses above.
-    memory->load_data(A, case_cfg.a_addr);
-    memory->load_data(B, case_cfg.b_addr);
+    // A/B are preloaded into the memory model by `AIC::start(case_toml)`,
+    // so tests do not need to call `memory->load_data` directly anymore.
 
     auto ret = aic->start(case_toml);
     EXPECT_TRUE(ret);
