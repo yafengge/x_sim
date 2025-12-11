@@ -20,9 +20,7 @@ p_cube_t AIC::build_cube(const p_clock_t& clk,
   return cube_;
 }
 
-p_clock_t AIC::build_clk() {
-  return p_clock_t(new Clock());
-}
+
 
 p_mem_t AIC::build_mem(const p_clock_t& clk) {
   // 按需读取内存相关配置（不缓存）
@@ -39,7 +37,7 @@ p_mem_t AIC::build_mem(const p_clock_t& clk) {
 }
 
 void AIC::build_all() {
-  auto clk = build_clk();
+  auto clk = std::make_shared<Clock>();
   auto mem = build_mem(clk);
   build_cube(clk, mem);
 }
