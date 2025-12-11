@@ -11,6 +11,8 @@
 #include "clock.h"
 #include "mem_if.h"
 #include "config/config_mgr.h"
+// utilities for per-case TOML and binary I/O
+#include "util/case_io.h"
 
 // AIC 封装顶层构建：clock、memory、cube，提供 build_* 接口便于模块化
 class AIC {
@@ -46,6 +48,13 @@ private:
     p_clock_t clk_;
     p_mem_t mem_;
     p_cube_t cube_;
+    // Helper methods to keep start(case_toml) concise
+    bool read_case_and_bins(const std::string &case_toml_path, util::CaseConfig &cfg,
+                            std::vector<DataType> &A, std::vector<DataType> &B);
+    std::string resolve_path(const std::string &path) const;
+    void preload_into_mem(const util::CaseConfig &cfg, const std::vector<DataType> &A, const std::vector<DataType> &B);
+    bool write_and_compare(const util::CaseConfig &cfg, const std::vector<AccType> &C,
+                           const std::vector<DataType> &A, const std::vector<DataType> &B);
 };
 
 #endif // AIC_H

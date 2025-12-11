@@ -43,34 +43,7 @@ TEST(Integration, SmallMatrix) {
                               0,0,0,1};
     // ensure case files exist; if not, generate binaries and write the toml
     if (!have_case) {
-        std::filesystem::create_directories(case_dir);
-        case_cfg.case_path = case_toml;
-        case_cfg.a_path = case_dir + std::string("/SmallMatrix_A.bin");
-        case_cfg.b_path = case_dir + std::string("/SmallMatrix_B.bin");
-        case_cfg.c_golden_path = case_dir + std::string("/SmallMatrix_C_golden.bin");
-        case_cfg.c_out_path = case_dir + std::string("/SmallMatrix_C_out.bin");
-        case_cfg.a_addr = 0;
-        case_cfg.b_addr = static_cast<uint32_t>(A.size());
-        case_cfg.c_addr = static_cast<uint32_t>(A.size() + B.size());
-        case_cfg.M = 4; case_cfg.K = 4; case_cfg.N = 4;
-        // write binaries
-        bool wa = util::write_bin_int16(case_cfg.a_path, A);
-        bool wb = util::write_bin_int16(case_cfg.b_path, B);
-        // compute golden C
-        std::vector<int32_t> Cgold(case_cfg.M * case_cfg.N, 0);
-        for (int i = 0; i < case_cfg.M; ++i) {
-            for (int j = 0; j < case_cfg.N; ++j) {
-                int32_t acc = 0;
-                for (int k = 0; k < case_cfg.K; ++k) {
-                    acc += static_cast<int32_t>(A[i*case_cfg.K + k]) * static_cast<int32_t>(B[k*case_cfg.N + j]);
-                }
-                Cgold[i*case_cfg.N + j] = acc;
-            }
-        }
-        bool wc = util::write_bin_int32(case_cfg.c_golden_path, Cgold);
-        (void)wa; (void)wb; (void)wc;
-        // write toml
-        util::write_case_toml(case_cfg);
+        util::create_case_files(case_toml, case_cfg, case_dir, std::string("SmallMatrix"), A, B, 4, 4, 4);
     }
     else {
         // If TOML exists but binaries were not generated in the source tree (e.g., a
@@ -143,27 +116,7 @@ TEST(Integration, QuickLarge) {
     auto B = util::generate_random_matrix(K,N);
 
     if (!have_case) {
-        std::filesystem::create_directories(case_dir);
-        case_cfg.case_path = case_toml;
-        case_cfg.a_path = case_dir + std::string("/QuickLarge_A.bin");
-        case_cfg.b_path = case_dir + std::string("/QuickLarge_B.bin");
-        case_cfg.c_golden_path = case_dir + std::string("/QuickLarge_C_golden.bin");
-        case_cfg.c_out_path = case_dir + std::string("/QuickLarge_C_out.bin");
-        case_cfg.a_addr = 0;
-        case_cfg.b_addr = static_cast<uint32_t>(A.size());
-        case_cfg.c_addr = static_cast<uint32_t>(A.size() + B.size());
-        case_cfg.M = M; case_cfg.K = K; case_cfg.N = N;
-        util::write_bin_int16(case_cfg.a_path, A);
-        util::write_bin_int16(case_cfg.b_path, B);
-        // golden
-        std::vector<int32_t> Cgold(M*N, 0);
-        for (int i=0;i<M;i++) for (int j=0;j<N;j++) {
-            int32_t acc = 0;
-            for (int k=0;k<K;k++) acc += static_cast<int32_t>(A[i*K+k]) * static_cast<int32_t>(B[k*N+j]);
-            Cgold[i*N+j] = acc;
-        }
-        util::write_bin_int32(case_cfg.c_golden_path, Cgold);
-        util::write_case_toml(case_cfg);
+        util::create_case_files(case_toml, case_cfg, case_dir, std::string("QuickLarge"), A, B, M, K, N);
     }
 
     auto clk = std::make_shared<Clock>();
@@ -198,26 +151,7 @@ TEST(Integration, DataflowModes) {
     auto B = util::generate_random_matrix(K,N);
 
     if (!have_case) {
-        std::filesystem::create_directories(case_dir);
-        case_cfg.case_path = case_toml;
-        case_cfg.a_path = case_dir + std::string("/Dataflow_A.bin");
-        case_cfg.b_path = case_dir + std::string("/Dataflow_B.bin");
-        case_cfg.c_golden_path = case_dir + std::string("/Dataflow_C_golden.bin");
-        case_cfg.c_out_path = case_dir + std::string("/Dataflow_C_out.bin");
-        case_cfg.a_addr = 0;
-        case_cfg.b_addr = static_cast<uint32_t>(A.size());
-        case_cfg.c_addr = static_cast<uint32_t>(A.size() + B.size());
-        case_cfg.M = M; case_cfg.K = K; case_cfg.N = N;
-        util::write_bin_int16(case_cfg.a_path, A);
-        util::write_bin_int16(case_cfg.b_path, B);
-        std::vector<int32_t> Cgold(M*N,0);
-        for (int i=0;i<M;i++) for (int j=0;j<N;j++) {
-            int32_t acc = 0;
-            for (int k=0;k<K;k++) acc += static_cast<int32_t>(A[i*K+k]) * static_cast<int32_t>(B[k*N+j]);
-            Cgold[i*N+j] = acc;
-        }
-        util::write_bin_int32(case_cfg.c_golden_path, Cgold);
-        util::write_case_toml(case_cfg);
+        util::create_case_files(case_toml, case_cfg, case_dir, std::string("Dataflow"), A, B, M, K, N);
     }
 
     auto clk_w = std::make_shared<Clock>();
@@ -242,26 +176,7 @@ TEST(Integration, Scaling) {
     auto A = util::generate_random_matrix(M,K);
     auto B = util::generate_random_matrix(K,N);
     if (!have_case) {
-        std::filesystem::create_directories(case_dir);
-        case_cfg.case_path = case_toml;
-        case_cfg.a_path = case_dir + std::string("/Scaling_A.bin");
-        case_cfg.b_path = case_dir + std::string("/Scaling_B.bin");
-        case_cfg.c_golden_path = case_dir + std::string("/Scaling_C_golden.bin");
-        case_cfg.c_out_path = case_dir + std::string("/Scaling_C_out.bin");
-        case_cfg.a_addr = 0;
-        case_cfg.b_addr = static_cast<uint32_t>(A.size());
-        case_cfg.c_addr = static_cast<uint32_t>(A.size() + B.size());
-        case_cfg.M = M; case_cfg.K = K; case_cfg.N = N;
-        util::write_bin_int16(case_cfg.a_path, A);
-        util::write_bin_int16(case_cfg.b_path, B);
-        std::vector<int32_t> Cgold(M*N,0);
-        for (int i=0;i<M;i++) for (int j=0;j<N;j++) {
-            int32_t acc = 0;
-            for (int k=0;k<K;k++) acc += static_cast<int32_t>(A[i*K+k]) * static_cast<int32_t>(B[k*N+j]);
-            Cgold[i*N+j] = acc;
-        }
-        util::write_bin_int32(case_cfg.c_golden_path, Cgold);
-        util::write_case_toml(case_cfg);
+        util::create_case_files(case_toml, case_cfg, case_dir, std::string("Scaling"), A, B, M, K, N);
     }
 
     auto clk = std::make_shared<Clock>();

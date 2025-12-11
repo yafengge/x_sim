@@ -162,4 +162,40 @@ bool read_case_toml(const std::string &path, CaseConfig &out) {
     return true;
 }
 
+bool create_case_files(const std::string &case_toml, CaseConfig &cfg,
+                       const std::string &case_dir, const std::string &base_name,
+                       const std::vector<int16_t> &A, const std::vector<int16_t> &B,
+                       int M, int K, int N) {
+    try {
+        std::filesystem::create_directories(case_dir);
+    } catch(...) {
+        // ignore
+    }
+    cfg.case_path = case_toml;
+    cfg.a_path = case_dir + std::string("/") + base_name + std::string("_A.bin");
+    cfg.b_path = case_dir + std::string("/") + base_name + std::string("_B.bin");
+    cfg.c_golden_path = case_dir + std::string("/") + base_name + std::string("_C_golden.bin");
+    cfg.c_out_path = case_dir + std::string("/") + base_name + std::string("_C_out.bin");
+    cfg.a_addr = 0;
+    cfg.b_addr = static_cast<uint32_t>(A.size());
+    cfg.c_addr = static_cast<uint32_t>(A.size() + B.size());
+    cfg.M = M; cfg.K = K; cfg.N = N;
+
+    if (!write_bin_int16(cfg.a_path, A)) return false;
+    if (!write_bin_int16(cfg.b_path, B)) return false;
+
+    std::vector<int32_t> Cgold(static_cast<size_t>(M) * static_cast<size_t>(N), 0);
+    for (int i = 0; i < M; ++i) {
+        for (int j = 0; j < N; ++j) {
+            int32_t acc = 0;
+            for (int k = 0; k < K; ++k) {
+                acc += static_cast<int32_t>(A[i*K + k]) * static_cast<int32_t>(B[k*N + j]);
+            }
+            Cgold[i* N + j] = acc;
+        }
+    }
+    if (!write_bin_int32(cfg.c_golden_path, Cgold)) return false;
+    return write_case_toml(cfg);
+}
+
 } // namespace util

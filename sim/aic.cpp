@@ -26,6 +26,133 @@ static void print_diffs(const std::vector<int32_t>& a, const std::vector<int32_t
   std::cerr << "total differences: " << diffs << "\n";
 }
 
+// Helper implementations
+bool AIC::read_case_and_bins(const std::string &case_toml_path, util::CaseConfig &cfg,
+                             std::vector<DataType> &A, std::vector<DataType> &B) {
+  if (!util::read_case_toml(case_toml_path, cfg)) {
+    std::cerr << "AIC::start: failed to read case toml: " << case_toml_path << std::endl;
+    return false;
+  }
+
+  auto try_read_int16 = [&](const std::string &path, std::vector<DataType> &out) -> bool {
+    if (util::read_bin_int16(path, out)) return true;
+    std::filesystem::path p(path);
+    if (p.is_relative()) {
+      std::filesystem::path cwd = std::filesystem::current_path();
+      for (int depth = 0; depth < 5; ++depth) {
+        std::string candidate = (cwd / path).string();
+        if (util::read_bin_int16(candidate, out)) return true;
+        if (cwd.has_parent_path()) cwd = cwd.parent_path();
+        else break;
+      }
+      std::string alt = std::string(PROJECT_SRC_DIR) + std::string("/") + path;
+      if (util::read_bin_int16(alt, out)) return true;
+    }
+    return false;
+  };
+
+  if (!try_read_int16(cfg.a_path, A)) {
+    std::cerr << "AIC::start: failed to read A from " << cfg.a_path << std::endl;
+    return false;
+  }
+  if (!try_read_int16(cfg.b_path, B)) {
+    std::cerr << "AIC::start: failed to read B from " << cfg.b_path << std::endl;
+    return false;
+  }
+  return true;
+}
+
+std::string AIC::resolve_path(const std::string &path) const {
+  std::filesystem::path p(path);
+  if (p.is_absolute()) return path;
+  return std::string(PROJECT_SRC_DIR) + std::string("/") + path;
+}
+
+void AIC::preload_into_mem(const util::CaseConfig &cfg, const std::vector<DataType> &A, const std::vector<DataType> &B) {
+  if (mem_) {
+    mem_->load_data(A, cfg.a_addr);
+    mem_->load_data(B, cfg.b_addr);
+  } else {
+    std::cerr << "AIC::start: mem_ is null; cannot preload A/B" << std::endl;
+  }
+}
+
+bool AIC::write_and_compare(const util::CaseConfig &cfg, const std::vector<AccType> &C,
+                            const std::vector<DataType> &A, const std::vector<DataType> &B) {
+  std::string c_out_resolved = resolve_path(cfg.c_out_path);
+  if (!util::write_bin_int32(c_out_resolved, C)) {
+    std::cerr << "AIC::start: failed to write C_out to " << c_out_resolved << std::endl;
+  }
+
+  if (!cfg.c_golden_path.empty()) {
+    std::string c_golden_resolved = resolve_path(cfg.c_golden_path);
+    std::vector<int32_t> Cgold;
+    if (util::read_bin_int32(c_golden_resolved, Cgold)) {
+      if (Cgold.size() != C.size()) {
+        std::cerr << "AIC::start: golden size mismatch: " << Cgold.size() << " vs " << C.size() << std::endl;
+        return false;
+      }
+      bool match = true;
+      for (size_t i = 0; i < C.size(); ++i) {
+        if (C[i] != Cgold[i]) { match = false; break; }
+      }
+      if (!match) {
+        std::cerr << "AIC::start: result does not match golden for case " << cfg.case_path << std::endl;
+        std::vector<size_t> diffs_idx;
+        for (size_t ii = 0; ii < C.size(); ++ii) {
+          if (C[ii] != Cgold[ii]) diffs_idx.push_back(ii);
+        }
+        size_t show = std::min<size_t>(diffs_idx.size(), 10);
+        for (size_t d = 0; d < show; ++d) {
+          size_t idx = diffs_idx[d];
+          size_t row = cfg.M > 0 ? idx / cfg.N : 0;
+          size_t col = cfg.N > 0 ? idx % cfg.N : 0;
+          std::cerr << "diff[" << d << "] idx=" << idx << " (r=" << row << ",c=" << col << ") expected=" << Cgold[idx] << " got=" << C[idx] << "\n";
+          std::cerr << "  A[row] = [";
+          for (int k = 0; k < cfg.K; ++k) {
+            if (k) std::cerr << ",";
+            std::cerr << A[row * cfg.K + k];
+          }
+          std::cerr << "]\n";
+          std::cerr << "  B[col] = [";
+          for (int k = 0; k < cfg.K; ++k) {
+            if (k) std::cerr << ",";
+            std::cerr << B[k * cfg.N + col];
+          }
+          std::cerr << "]\n";
+        }
+
+        std::string diff_path;
+        if (!cfg.case_path.empty()) diff_path = cfg.case_path + std::string(".diff");
+        else diff_path = cfg.c_out_path + std::string(".diff");
+        std::ofstream df(diff_path);
+        if (df) {
+          df << "case=" << cfg.case_path << "\n";
+          df << "total_diffs=" << diffs_idx.size() << "\n";
+          for (size_t idx : diffs_idx) {
+            size_t row = cfg.M > 0 ? idx / cfg.N : 0;
+            size_t col = cfg.N > 0 ? idx % cfg.N : 0;
+            df << idx << "," << row << "," << col << ",got=" << C[idx] << ",exp=" << Cgold[idx] << "\n";
+            df << "A_row:";
+            for (int k = 0; k < cfg.K; ++k) { if (k) df << ","; df << A[row * cfg.K + k]; }
+            df << "\nB_col:";
+            for (int k = 0; k < cfg.K; ++k) { if (k) df << ","; df << B[k * cfg.N + col]; }
+            df << "\n---\n";
+          }
+          df.close();
+          std::cerr << "AIC::start: wrote diff file: " << diff_path << std::endl;
+        }
+
+        print_diffs(C, Cgold);
+        return false;
+      }
+    } else {
+      std::cerr << "AIC::start: could not read golden file " << cfg.c_golden_path << std::endl;
+    }
+  }
+  return true;
+}
+
 AIC::AIC(const p_clock_t& clk,
          const p_mem_t& mem)
   : clk_(clk), mem_(mem) {
@@ -59,57 +186,15 @@ bool AIC::start(const std::vector<DataType>& A, int A_rows, int A_cols,
 
 bool AIC::start(const std::string &case_toml_path) {
   util::CaseConfig cfg;
-  if (!util::read_case_toml(case_toml_path, cfg)) {
-    std::cerr << "AIC::start: failed to read case toml: " << case_toml_path << std::endl;
-    return false;
-  }
-
-  // read input binaries (try raw path first; if missing and path is relative,
-  // retry by prefixing PROJECT_SRC_DIR so TOMLs with "tests/cases/..." work
-  // regardless of the current working directory).
   std::vector<DataType> A;
   std::vector<DataType> B;
   std::vector<AccType> C;
 
-  auto try_read_int16 = [&](const std::string &path, std::vector<DataType> &out) -> bool {
-    if (util::read_bin_int16(path, out)) return true;
-    std::filesystem::path p(path);
-    // Try resolving relative paths by walking up from current path, and also
-    // try PROJECT_SRC_DIR as a fallback.
-    if (p.is_relative()) {
-      std::filesystem::path cwd = std::filesystem::current_path();
-      for (int depth = 0; depth < 5; ++depth) {
-        std::string candidate = (cwd / path).string();
-        if (util::read_bin_int16(candidate, out)) return true;
-        if (cwd.has_parent_path()) cwd = cwd.parent_path();
-        else break;
-      }
-      std::string alt = std::string(PROJECT_SRC_DIR) + std::string("/") + path;
-      if (util::read_bin_int16(alt, out)) return true;
-    }
-    return false;
-  };
-
-  if (!try_read_int16(cfg.a_path, A)) {
-    std::cerr << "AIC::start: failed to read A from " << cfg.a_path << std::endl;
-    return false;
-  }
-  if (!try_read_int16(cfg.b_path, B)) {
-    std::cerr << "AIC::start: failed to read B from " << cfg.b_path << std::endl;
-    return false;
-  }
-
+  if (!read_case_and_bins(case_toml_path, cfg, A, B)) return false;
   int A_rows = cfg.M; int A_cols = cfg.K;
   int B_rows = cfg.K; int B_cols = cfg.N;
 
-  // Preload A/B into the memory model at the addresses declared in the case
-  // configuration so each tile does not need to re-request the data.
-  if (mem_) {
-    mem_->load_data(A, cfg.a_addr);
-    mem_->load_data(B, cfg.b_addr);
-  } else {
-    std::cerr << "AIC::start: mem_ is null; cannot preload A/B" << std::endl;
-  }
+  preload_into_mem(cfg, A, B);
 
   if (!cube_) {
     std::cerr << "AIC::start: cube not constructed; call build(config_path) first" << std::endl;
@@ -119,90 +204,7 @@ bool AIC::start(const std::string &case_toml_path) {
   bool ok = cube_->run(A, A_rows, A_cols, B, B_rows, B_cols, C);
   if (!ok) return false;
 
-  // write C out (resolve relative paths similar to reads)
-  auto resolve_path = [&](const std::string &path)->std::string {
-    std::filesystem::path p(path);
-    if (p.is_absolute()) return path;
-    return std::string(PROJECT_SRC_DIR) + std::string("/") + path;
-  };
-
-  std::string c_out_resolved = resolve_path(cfg.c_out_path);
-  if (!util::write_bin_int32(c_out_resolved, C)) {
-    std::cerr << "AIC::start: failed to write C_out to " << c_out_resolved << std::endl;
-    // continue to allow comparison if golden exists
-  }
-
-  // compare with golden if present
-  std::vector<int32_t> Cgold;
-  if (!cfg.c_golden_path.empty()) {
-    std::string c_golden_resolved = resolve_path(cfg.c_golden_path);
-    if (util::read_bin_int32(c_golden_resolved, Cgold)) {
-      if (Cgold.size() != C.size()) {
-        std::cerr << "AIC::start: golden size mismatch: " << Cgold.size() << " vs " << C.size() << std::endl;
-        return false;
-      }
-      bool match = true;
-      for (size_t i = 0; i < C.size(); ++i) {
-        if (C[i] != Cgold[i]) { match = false; break; }
-      }
-      if (!match) {
-        std::cerr << "AIC::start: result does not match golden for case " << case_toml_path << std::endl;
-        // Collect differing indices
-        std::vector<size_t> diffs_idx;
-        for (size_t ii = 0; ii < C.size(); ++ii) {
-          if (C[ii] != Cgold[ii]) diffs_idx.push_back(ii);
-        }
-        size_t show = std::min<size_t>(diffs_idx.size(), 10);
-        for (size_t d = 0; d < show; ++d) {
-          size_t idx = diffs_idx[d];
-          size_t row = cfg.M > 0 ? idx / cfg.N : 0;
-          size_t col = cfg.N > 0 ? idx % cfg.N : 0;
-          std::cerr << "diff[" << d << "] idx=" << idx << " (r=" << row << ",c=" << col << ") expected=" << Cgold[idx] << " got=" << C[idx] << "\n";
-          // print A row
-          std::cerr << "  A[row] = [";
-          for (int k = 0; k < cfg.K; ++k) {
-            if (k) std::cerr << ",";
-            std::cerr << A[row * cfg.K + k];
-          }
-          std::cerr << "]\n";
-          // print B column
-          std::cerr << "  B[col] = [";
-          for (int k = 0; k < cfg.K; ++k) {
-            if (k) std::cerr << ",";
-            std::cerr << B[k * cfg.N + col];
-          }
-          std::cerr << "]\n";
-        }
-
-        // Write a compact diff file next to the C_out (or case file if available)
-        std::string diff_path;
-        if (!cfg.case_path.empty()) diff_path = cfg.case_path + std::string(".diff");
-        else diff_path = cfg.c_out_path + std::string(".diff");
-        std::ofstream df(diff_path);
-        if (df) {
-          df << "case=" << case_toml_path << "\n";
-          df << "total_diffs=" << diffs_idx.size() << "\n";
-          for (size_t idx : diffs_idx) {
-            size_t row = cfg.M > 0 ? idx / cfg.N : 0;
-            size_t col = cfg.N > 0 ? idx % cfg.N : 0;
-            df << idx << "," << row << "," << col << ",got=" << C[idx] << ",exp=" << Cgold[idx] << "\n";
-            df << "A_row:";
-            for (int k = 0; k < cfg.K; ++k) { if (k) df << ","; df << A[row * cfg.K + k]; }
-            df << "\nB_col:";
-            for (int k = 0; k < cfg.K; ++k) { if (k) df << ","; df << B[k * cfg.N + col]; }
-            df << "\n---\n";
-          }
-          df.close();
-          std::cerr << "AIC::start: wrote diff file: " << diff_path << std::endl;
-        }
-
-        print_diffs(C, Cgold);
-        return false;
-      }
-    } else {
-      std::cerr << "AIC::start: could not read golden file " << cfg.c_golden_path << std::endl;
-    }
-  }
+  if (!write_and_compare(cfg, C, A, B)) return false;
 
   return true;
 }
