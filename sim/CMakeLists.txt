@@ -19,6 +19,7 @@ set(SRCS_LIB
     clock.cpp
     cube.cpp
     util/verify.cpp
+    util/utils.cpp
     aic.cpp
     config/mini_toml.cpp
     config/config_mgr.cpp

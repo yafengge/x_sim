@@ -9,7 +9,7 @@
 #include "config/config_mgr.h"
 
 #include <gtest/gtest.h>
-#include "utils.h"
+#include "util/utils.h"
 #include "util/verify.h"
 #include <filesystem>
 

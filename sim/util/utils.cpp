@@ -1,3 +1,4 @@
+// moved from tests/utils.cpp
 #include "utils.h"
 #include <random>
 #include <fstream>
@@ -64,7 +65,6 @@ bool read_case_toml(const std::string& path, CaseMeta& meta) {
     std::string line;
     std::string section;
     while (std::getline(fin, line)) {
-        // trim leading spaces
         size_t p = line.find_first_not_of(" \t\r\n");
         if (p == std::string::npos) continue;
         line = line.substr(p);
@@ -77,7 +77,6 @@ bool read_case_toml(const std::string& path, CaseMeta& meta) {
         if (eq == std::string::npos) continue;
         std::string key = line.substr(0, eq);
         std::string val = line.substr(eq+1);
-        // trim
         auto trim = [](std::string &s){
             size_t a = s.find_first_not_of(" \t\r\n");
             size_t b = s.find_last_not_of(" \t\r\n");
@@ -85,8 +84,7 @@ bool read_case_toml(const std::string& path, CaseMeta& meta) {
             s = s.substr(a, b-a+1);
         };
         trim(key); trim(val);
-        // strip optional quotes
-        if (!val.empty() && val.front()=='\"' && val.back()=='\"') val = val.substr(1, val.size()-2);
+        if (!val.empty() && val.front()=='"' && val.back()=='"') val = val.substr(1, val.size()-2);
         try {
             if (section == "a") {
                 if (key == "path") meta.a_path = val;
@@ -98,9 +96,7 @@ bool read_case_toml(const std::string& path, CaseMeta& meta) {
                 else if (key == "cols") meta.b_cols = std::stoi(val);
             }
         } catch (...) {
-            // ignore parse errors, treat as failure
             return false;
         }
     }
     return true;
-}
