@@ -15,9 +15,13 @@
 // AIC 封装顶层构建：clock、memory、cube，提供 build_* 接口便于模块化
 class AIC {
 public:
-    explicit AIC(const std::string& config_path,
-                 const p_clock_t& clk,
+    // Construct AIC with clock and memory; call `build(cfg)` to configure and
+    // construct the internal `Cube` before calling `start()`.
+    explicit AIC(const p_clock_t& clk,
                  const p_mem_t& mem);
+
+    // Configure and construct the Cube using the given config path.
+    void build(const std::string& config_path);
 
     // Access to the constructed Cube object has been removed; use AIC::start
     // to perform runs via the AIC interface.
@@ -28,7 +32,11 @@ public:
                std::vector<AccType>& C);
 
 private:
+    // configuration path (set via build)
     std::string config_path_;
+    // retained handles for constructing Cube during build
+    p_clock_t clk_;
+    p_mem_t mem_;
     p_cube_t cube_;
 };
 

@@ -6,19 +6,28 @@
 
 #include <iostream>
 
-AIC::AIC(const std::string& config_path,
-         const p_clock_t& clk,
+AIC::AIC(const p_clock_t& clk,
          const p_mem_t& mem)
-  : config_path_(config_path) {
-  // construct Cube with provided clock and memory
-  cube_ = p_cube_t(new Cube(config_path_, clk, mem));
+  : clk_(clk), mem_(mem) {
+  // Delayed: cube_ will be constructed in build(config_path)
+}
+
+void AIC::build(const std::string& config_path) {
+  config_path_ = config_path;
+  if (!clk_ || !mem_) {
+    std::cerr << "AIC::build: clock or memory not provided" << std::endl;
+    return;
+  }
+  if (!cube_) {
+    cube_ = p_cube_t(new Cube(config_path_, clk_, mem_));
+  }
 }
 
 bool AIC::start(const std::vector<DataType>& A, int A_rows, int A_cols,
                 const std::vector<DataType>& B, int B_rows, int B_cols,
                 std::vector<AccType>& C) {
   if (!cube_) {
-    std::cerr << "AIC::start: cube not constructed/attached" << std::endl;
+    std::cerr << "AIC::start: cube not constructed; call build(config_path) first" << std::endl;
     return false;
   }
   return cube_->run(A, A_rows, A_cols, B, B_rows, B_cols, C);
