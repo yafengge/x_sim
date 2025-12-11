@@ -17,16 +17,16 @@ class Clock;
 
 class Mem {
 private:
-    std::vector<DataType> memory;
-    int latency;
-    int max_outstanding;
-    int issue_bw_read;
-    int issue_bw_write;
-    int complete_bw_read;
-    int complete_bw_write;
-    uint64_t current_cycle;
-    int issued_read_this_cycle;
-    int issued_write_this_cycle;
+    std::vector<DataType> memory_;
+    int latency_;
+    int max_outstanding_;
+    int issue_bw_read_;
+    int issue_bw_write_;
+    int complete_bw_read_;
+    int complete_bw_write_;
+    uint64_t current_cycle_;
+    int issued_read_this_cycle_;
+    int issued_write_this_cycle_;
     struct Request {
         uint32_t addr;
         // shared pointer to a completion queue where completed data will be pushed
@@ -39,10 +39,14 @@ private:
         size_t len;      // burst length (for reads)
         size_t progress; // how many elements already produced
     };
-    std::vector<Request> pending_requests;
+    std::vector<Request> pending_requests_;
 
 public:
-    Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_outstanding = -1);
+    // New constructor: parameters are read from the configuration file. If
+    // `config_path` is empty the constructor will probe common locations
+    // (`model_cfg.toml`, `config/model.toml`). The `clock` parameter is
+    // optional and currently unused by the memory model itself.
+    Mem(p_clock_t clock = nullptr, const std::string &config_path = "");
 
     // Configuration is read via per-key getters; struct-based API removed.
 
@@ -54,9 +58,13 @@ public:
     void cycle();  // 每个周期调用
     // 直接加载初始内存内容到内存模型（用于将 A/B 放入内存）
     void load_data(const std::vector<DataType>& data, uint32_t offset = 0);
-    bool has_pending() const { return !pending_requests.empty(); }
+    bool has_pending() const { return !pending_requests_.empty(); }
     // Expose configured latency for callers
-    int get_latency() const { return latency; }
+    int get_latency() const { return latency_; }
+
+private:
+    // Load configuration values from `path` into member variables.
+    void config(const std::string &path);
 };
 
 #endif // MEMORY_INTERFACE_H

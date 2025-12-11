@@ -19,7 +19,9 @@ public:
     // 分步构建接口（build_all 创建 clock/mem 后传给 build_cube）
     p_mem_t build_mem(const p_clock_t& clk);
 
-    p_cube_t build_cube(const p_clock_t& clk, const p_mem_t& mem);
+    // Attach an existing Clock and Mem to the AIC instance and construct the Cube
+    // if not already created. Replaces the previous `build_cube` name.
+    p_cube_t attach(const p_clock_t& clk, const p_mem_t& mem);
     
     void build_all();
 

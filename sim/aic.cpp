@@ -11,7 +11,7 @@ AIC::AIC(const std::string& config_path)
   build_all();
 }
 
-p_cube_t AIC::build_cube(const p_clock_t& clk,
+p_cube_t AIC::attach(const p_clock_t& clk,
                             const p_mem_t& mem) {
   if (!cube_) {
     // Cube 将按需从配置文件读取参数
@@ -23,21 +23,13 @@ p_cube_t AIC::build_cube(const p_clock_t& clk,
 
 
 p_mem_t AIC::build_mem(const p_clock_t& clk) {
-  // 按需读取内存相关配置（不缓存）
-  int mem_latency = 10;
-  int bw = 4;
-  int max_outstanding = 0;
-  std::string tmp;
-  if (!get_int_key(config_path_, "memory.memory_latency", mem_latency)) mem_latency = 10;
-  if (!get_int_key(config_path_, "memory.bandwidth", bw)) bw = 4;
-  if (!get_int_key(config_path_, "memory.max_outstanding", max_outstanding)) max_outstanding = 0;
-  int issue_bw = bw;
-  int complete_bw = bw;
-  return p_mem_t(new Mem(64, mem_latency, issue_bw, complete_bw, max_outstanding, clk));
+  // Let Mem read its own configuration from the configured path. Pass the
+  // AIC's config path so tests / users can control which config is used.
+  return p_mem_t(new Mem(clk, config_path_));
 }
 
 void AIC::build_all() {
   auto clk = std::make_shared<Clock>();
   auto mem = build_mem(clk);
-  build_cube(clk, mem);
+  attach(clk, mem);
 }

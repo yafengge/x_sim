@@ -21,8 +21,8 @@ public:
     // (Configuration is read on-demand via per-key getters; no in-memory struct)
 
     // 访问内部的脉动阵列实例
-    SystolicArray& array() { return systolic_; }
-    const SystolicArray& array() const { return systolic_; }
+    SystolicArray& array() { return *systolic_; }
+    const SystolicArray& array() const { return *systolic_; }
 
     // Provide top-level convenience methods that forward to the internal SystolicArray
     bool matmul(const std::vector<DataType>& A, int A_rows, int A_cols,
@@ -43,7 +43,11 @@ private:
     std::string config_path_;
     p_clock_t clock_;
     p_mem_t mem_;
-    SystolicArray systolic_;
+    p_systolic_array_t systolic_;
+
+    // Load or normalize configuration path and perform any Cube-level
+    // configuration/validation. Called from constructor.
+    void config(const std::string &path);
 };
 
 #endif // CUBE_TOP_H

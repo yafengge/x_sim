@@ -39,7 +39,7 @@ TEST(Integration, SmallMatrix) {
     AIC aic(cfg);
     auto clk = std::make_shared<Clock>();
     auto memory = aic.build_mem(clk);
-    auto cube = aic.build_cube(clk, memory);
+    auto cube = aic.attach(clk, memory);
 
     std::vector<int32_t> C;
 
@@ -66,7 +66,7 @@ TEST(Integration, QuickLarge) {
     AIC aic(cfg);
     auto clk = std::make_shared<Clock>();
     auto memory = aic.build_mem(clk);
-    auto cube = aic.build_cube(clk, memory);
+    auto cube = aic.attach(clk, memory);
 
     int M = 32; int K = 32; int N = 32;
     auto A = xsim::util::generate_random_matrix(M,K);
@@ -105,7 +105,7 @@ TEST(Integration, DISABLED_DataflowModes) {
     AIC aic_w(cfg);
     auto clk_w = std::make_shared<Clock>();
     auto memory_w = aic_w.build_mem(clk_w);
-    auto cube_w = aic_w.build_cube(clk_w, memory_w);
+    auto cube_w = aic_w.attach(clk_w, memory_w);
     std::vector<int32_t> Cw;
     memory_w->load_data(A, 0);
     memory_w->load_data(B, static_cast<uint32_t>(A.size()));
@@ -131,7 +131,7 @@ TEST(Integration, DISABLED_Scaling) {
     AIC aic(cfg);
     auto clk = std::make_shared<Clock>();
     auto memory = aic.build_mem(clk);
-    auto cube = aic.build_cube(clk, memory);
+    auto cube = aic.attach(clk, memory);
     
     std::vector<int32_t> C;
     memory->load_data(A, 0);
