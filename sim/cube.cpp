@@ -34,9 +34,9 @@ void Cube::config(const std::string &path) {
     // Additional cube-level validation or config reads could be placed here.
 }
 
-bool Cube::matmul(const std::vector<DataType>& A, int A_rows, int A_cols,
-                  const std::vector<DataType>& B, int B_rows, int B_cols,
-                  std::vector<AccType>& C) {
-    return systolic_->matmul(A, A_rows, A_cols, B, B_rows, B_cols, C);
+bool Cube::run(const std::vector<DataType>& A, int A_rows, int A_cols,
+               const std::vector<DataType>& B, int B_rows, int B_cols,
+               std::vector<AccType>& C) {
+    return systolic_->run(A, A_rows, A_cols, B, B_rows, B_cols, C);
 }
 

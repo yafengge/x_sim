@@ -24,7 +24,7 @@ static std::string find_config_rel() {
 // 步骤：
 // 1. 生成一个小的配置文件（阵列尺寸 4x4），用以快速运行仿真；
 // 2. 构建 `AIC` 并获取 `Cube`；
-// 3. 使用已知的 A、B 数据执行 `matmul`，并用软件参考实现 `verify_result` 校验结果。
+// 3. 使用已知的 A、B 数据执行 `run`，并用软件参考实现 `verify_result` 校验结果。
 TEST(Integration, SmallMatrix) {
     std::string cfg = find_config_rel();
     // SmallMatrix uses in-memory deterministic matrices (no file IO).
@@ -47,7 +47,7 @@ TEST(Integration, SmallMatrix) {
     memory->load_data(A, 0);
     memory->load_data(B, static_cast<uint32_t>(A.size()));
 
-    EXPECT_TRUE(cube->matmul(A,4,4,B,4,4,C));
+    EXPECT_TRUE(cube->run(A,4,4,B,4,4,C));
     EXPECT_TRUE(util::verify_result(A,4,4,B,4,4,C));
 }
 
@@ -58,7 +58,7 @@ TEST(Integration, SmallMatrix) {
 // 步骤：
 // 1. 生成/写入一个临时配置文件（`int_test_config2.toml`），设置阵列规模。
 // 2. 使用该配置创建 `AIC`（顶层封装），并从中获取 `Cube` 实例。
-// 3. 生成随机矩阵 A、B，并调用 `cube->matmul` 执行仿真。
+// 3. 生成随机矩阵 A、B，并调用 `cube->run` 执行仿真。
 // 4. 从得到的结果中抽取一个 4x4 子块，用软件实现的乘法进行对比验证。
 TEST(Integration, QuickLarge) {
     std::string cfg = find_config_rel();
@@ -77,7 +77,7 @@ TEST(Integration, QuickLarge) {
     memory->load_data(A, 0);
     memory->load_data(B, static_cast<uint32_t>(A.size()));
 
-    EXPECT_TRUE(cube->matmul(A,M,K,B,K,N,C));
+    EXPECT_TRUE(cube->run(A,M,K,B,K,N,C));
     // Verify a small block to limit cost
     std::vector<int16_t> A_block(4*K);
     std::vector<int16_t> B_block(K*4);
@@ -85,6 +85,7 @@ TEST(Integration, QuickLarge) {
     for (int i=0;i<4;i++) for (int k=0;k<K;k++) A_block[i*K+k]=A[i*K+k];
     for (int k=0;k<K;k++) for (int j=0;j<4;j++) B_block[k*4+j]=B[k*N+j];
     for (int i=0;i<4;i++) for (int j=0;j<4;j++) C_block[i*4+j]=C[i*N+j];
+    
     EXPECT_TRUE(util::verify_result(A_block,4,K,B_block,K,4,C_block));
 }
 
@@ -110,7 +111,7 @@ TEST(Integration, DataflowModes) {
     memory_w->load_data(A, 0);
     memory_w->load_data(B, static_cast<uint32_t>(A.size()));
 
-    EXPECT_TRUE(cube_w->matmul(A, M, K, B, K, N, Cw));
+    EXPECT_TRUE(cube_w->run(A, M, K, B, K, N, Cw));
     EXPECT_TRUE(util::verify_result(A, M, K, B, K, N, Cw));
 }
 
@@ -137,7 +138,7 @@ TEST(Integration, Scaling) {
     memory->load_data(A, 0);
     memory->load_data(B, static_cast<uint32_t>(A.size()));
 
-    EXPECT_TRUE(cube->matmul(A, M, K, B, K, N, C));
+    EXPECT_TRUE(cube->run(A, M, K, B, K, N, C));
     EXPECT_TRUE(util::verify_result(A, M, K, B, K, N, C));
 }
 

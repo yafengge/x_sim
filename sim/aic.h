@@ -24,9 +24,6 @@ public:
     
     void build_all();
 
-    // `array()` accessor removed; callers should use `get_cube()` and
-    // operate on the `Cube` or its public methods instead.
-
     // Access to the constructed Cube object (may be nullptr until built)
     p_cube_t get_cube() { return cube_; }
 
