@@ -1,0 +1,21 @@
+# case toml generated
+[input.A]
+path = "/home/steven/x_sim/sim/tests/cases/Scaling_A.bin"
+addr = 0
+type = "int16"
+[input.B]
+path = "/home/steven/x_sim/sim/tests/cases/Scaling_B.bin"
+addr = 65536
+type = "int16"
+[output.C]
+golden = "/home/steven/x_sim/sim/tests/cases/Scaling_C_golden.bin"
+out = "/home/steven/x_sim/sim/tests/cases/Scaling_C_out.bin"
+addr = 131072
+type = "int32"
+[meta]
+M = 256
+K = 256
+N = 256
+endian = "little"
+[model_cfg]
+path = "model_cfg.toml"

@@ -1,0 +1,24 @@
+# Example case TOML for SmallMatrix test
+[input.A]
+path = "tests/cases/SmallMatrix_A.bin"
+addr = 0
+type = "int16"
+
+[input.B]
+path = "tests/cases/SmallMatrix_B.bin"
+addr = 16
+type = "int16"
+
+[output.C]
+golden = "tests/cases/SmallMatrix_C_golden.bin"
+out = "tests/cases/SmallMatrix_C_out.bin"
+addr = 32
+type = "int32"
+
+[meta]
+M = 4
+K = 4
+N = 4
+endian = "little"
+[model_cfg]
+path = "model_cfg.toml"

@@ -1,0 +1,21 @@
+# case toml generated
+[input.A]
+path = "/home/steven/x_sim/sim/tests/cases/QuickLarge_A.bin"
+addr = 0
+type = "int16"
+[input.B]
+path = "/home/steven/x_sim/sim/tests/cases/QuickLarge_B.bin"
+addr = 1024
+type = "int16"
+[output.C]
+golden = "/home/steven/x_sim/sim/tests/cases/QuickLarge_C_golden.bin"
+out = "/home/steven/x_sim/sim/tests/cases/QuickLarge_C_out.bin"
+addr = 2048
+type = "int32"
+[meta]
+M = 32
+K = 32
+N = 32
+endian = "little"
+[model_cfg]
+path = "model_cfg.toml"
