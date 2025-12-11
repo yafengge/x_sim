@@ -95,7 +95,7 @@ TEST(Integration, QuickLarge) {
 // 目的：验证不同数据流策略（WEIGHT/OUTPUT/INPUT stationary）对阵列行为的影响。
 // 说明：该测试较为耗时，会对同一输入在不同 dataflow 配置下运行完整仿真。
 // 默认以 DISABLED_ 前缀禁用；需要时通过 `--gtest_filter` 或取消 DISABLED_ 前缀启用。
-TEST(Integration, DISABLED_DataflowModes) {
+TEST(Integration, DataflowModes) {
     std::string cfg = find_config_rel();
     int M = 64, K = 64, N = 64;
     auto A = xsim::util::generate_random_matrix(M,K);
@@ -119,7 +119,7 @@ TEST(Integration, DISABLED_DataflowModes) {
 // 目的：测试不同阵列尺寸（4、8、16、32 等）下的矩阵乘法可扩展性与正确性。
 // 说明：此测试针对更大的输入（例如 256x256）进行多次仿真，运行时间较长，
 // 因此默认被禁用（以 `DISABLED_` 前缀）。
-TEST(Integration, DISABLED_Scaling) {
+TEST(Integration, Scaling) {
     std::string cfg = find_config_rel();
     int M = 256, K = 256, N = 256;
     auto A = xsim::util::generate_random_matrix(M,K);
