@@ -22,9 +22,10 @@ public:
     explicit AIC(const p_clock_t& clk,
                  const p_mem_t& mem);
 
-    // Configure and construct the Cube using the given config path.
-    // If `force` is true, reinitialize the Cube even if the config matches.
-    void build(const std::string& config_path, bool force = false);
+    // Configure and construct the Cube using a per-case TOML. The case TOML
+    // should reference the platform `model_cfg.toml`. If `force` is true,
+    // reinitialize the Cube even if the config matches.
+    void build(const std::string& case_toml_path, bool force = false);
 
     // Access to the constructed Cube object has been removed; use AIC::start
     // to perform runs via the AIC interface.
@@ -34,12 +35,11 @@ public:
                const std::vector<DataType>& B, int B_rows, int B_cols,
                std::vector<AccType>& C);
 
-    // Start a run using a per-case TOML. The TOML describes input binary files
-    // and addresses as well as the golden output path. The A/B files will be
-    // loaded by AIC (from disk) and the resulting C will be written to the
-    // configured output path; if a golden exists it will be compared and
-    // differences printed.
-    bool start(const std::string &case_toml_path);
+    // Start a run using the previously provided case TOML passed to `build`.
+    // The A/B files will be loaded by AIC (from disk) and the resulting C
+    // will be written to the configured output path; if a golden exists it
+    // will be compared and differences printed.
+    bool start();
 
 private:
     // configuration path (set via build)
@@ -48,13 +48,14 @@ private:
     p_clock_t clk_;
     p_mem_t mem_;
     p_cube_t cube_;
-    // Helper methods to keep start(case_toml) concise
-    bool read_case_and_bins(const std::string &case_toml_path, util::CaseConfig &cfg,
-                            std::vector<DataType> &A, std::vector<DataType> &B);
+    // Helper methods
+    bool read_bins_from_cfg(const util::CaseConfig &cfg, std::vector<DataType> &A, std::vector<DataType> &B);
     std::string resolve_path(const std::string &path) const;
     void preload_into_mem(const util::CaseConfig &cfg, const std::vector<DataType> &A, const std::vector<DataType> &B);
     bool write_and_compare(const util::CaseConfig &cfg, const std::vector<AccType> &C,
                            const std::vector<DataType> &A, const std::vector<DataType> &B);
+    // stored case configuration (set by build)
+    util::CaseConfig case_cfg_;
 };
 
 #endif // AIC_H

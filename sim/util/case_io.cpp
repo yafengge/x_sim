@@ -102,6 +102,14 @@ bool write_case_toml(CaseConfig &cfg) {
     ofs << "K = " << cfg.K << "\n";
     ofs << "N = " << cfg.N << "\n";
     ofs << "endian = \"" << cfg.endian << "\"\n";
+    // model_cfg is stored in its own table so callers can reference the
+    // platform config independently of meta fields.
+    ofs << "[model_cfg]\n";
+    if (!cfg.model_cfg_path.empty()) {
+        ofs << "path = \"" << cfg.model_cfg_path << "\"\n";
+    } else {
+        ofs << "path = \"model_cfg.toml\"\n";
+    }
     return ofs.good();
 }
 
@@ -142,6 +150,12 @@ bool read_case_toml(const std::string &path, CaseConfig &out) {
             std::filesystem::path p(out.c_out_path);
             if (p.is_relative()) out.c_out_path = (std::filesystem::path(PROJECT_SRC_DIR) / p).string();
         }
+        // resolve model_cfg if present in its own table
+        out.model_cfg_path = get("model_cfg.path");
+        if (!out.model_cfg_path.empty()) {
+            std::filesystem::path p(out.model_cfg_path);
+            if (p.is_relative()) out.model_cfg_path = (std::filesystem::path(PROJECT_SRC_DIR) / p).string();
+        }
         // make case_path absolute as well
         std::filesystem::path cp(path);
         if (cp.is_relative()) out.case_path = (std::filesystem::path(PROJECT_SRC_DIR) / cp).string();
@@ -180,6 +194,8 @@ bool create_case_files(const std::string &case_toml, CaseConfig &cfg,
     cfg.b_addr = static_cast<uint32_t>(A.size());
     cfg.c_addr = static_cast<uint32_t>(A.size() + B.size());
     cfg.M = M; cfg.K = K; cfg.N = N;
+    // reference the shared model config by default (relative path)
+    cfg.model_cfg_path = std::string("model_cfg.toml");
 
     if (!write_bin_int16(cfg.a_path, A)) return false;
     if (!write_bin_int16(cfg.b_path, B)) return false;

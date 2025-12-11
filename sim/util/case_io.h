@@ -15,6 +15,8 @@ struct CaseConfig {
     std::string c_golden_path;
     uint32_t c_addr = 0;
     std::string c_out_path;
+    // path to the model config (model_cfg.toml) referenced by the case
+    std::string model_cfg_path;
     int M = 0;
     int K = 0;
     int N = 0;

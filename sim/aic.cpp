@@ -27,13 +27,9 @@ static void print_diffs(const std::vector<int32_t>& a, const std::vector<int32_t
 }
 
 // Helper implementations
-bool AIC::read_case_and_bins(const std::string &case_toml_path, util::CaseConfig &cfg,
-                             std::vector<DataType> &A, std::vector<DataType> &B) {
-  if (!util::read_case_toml(case_toml_path, cfg)) {
-    std::cerr << "AIC::start: failed to read case toml: " << case_toml_path << std::endl;
-    return false;
-  }
 
+// Read A/B binaries according to an already-populated CaseConfig
+bool AIC::read_bins_from_cfg(const util::CaseConfig &cfg, std::vector<DataType> &A, std::vector<DataType> &B) {
   auto try_read_int16 = [&](const std::string &path, std::vector<DataType> &out) -> bool {
     if (util::read_bin_int16(path, out)) return true;
     std::filesystem::path p(path);
@@ -159,16 +155,30 @@ AIC::AIC(const p_clock_t& clk,
   // Delayed: cube_ will be constructed in build(config_path)
 }
 
-void AIC::build(const std::string& config_path, bool force) {
+void AIC::build(const std::string& case_toml_path, bool force) {
   if (!clk_ || !mem_) {
     std::cerr << "AIC::build: clock or memory not provided" << std::endl;
     return;
   }
 
-  // If cube not yet constructed, or config changed, or force requested,
+  // Read and store the case config. This also contains a reference to the
+  // platform model config (model_cfg.toml) which we will use to construct
+  // the Cube.
+  util::CaseConfig cfg;
+  if (!util::read_case_toml(case_toml_path, cfg)) {
+    std::cerr << "AIC::build: failed to read case toml: " << case_toml_path << std::endl;
+    return;
+  }
+  case_cfg_ = cfg;
+
+  // Determine model config path referenced by the case. If it's empty,
+  // fall back to default "model_cfg.toml" in project root.
+  std::string model_cfg = cfg.model_cfg_path.empty() ? std::string("model_cfg.toml") : cfg.model_cfg_path;
+
+  // If cube not yet constructed, or model config changed, or force requested,
   // create/recreate the Cube instance.
-  if (!cube_ || force || config_path != config_path_) {
-    config_path_ = config_path;
+  if (!cube_ || force || model_cfg != config_path_) {
+    config_path_ = model_cfg;
     cube_.reset();
     cube_ = p_cube_t(new Cube(config_path_, clk_, mem_));
   }
@@ -184,27 +194,30 @@ bool AIC::start(const std::vector<DataType>& A, int A_rows, int A_cols,
   return cube_->run(A, A_rows, A_cols, B, B_rows, B_cols, C);
 }
 
-bool AIC::start(const std::string &case_toml_path) {
-  util::CaseConfig cfg;
+bool AIC::start() {
+  if (case_cfg_.case_path.empty()) {
+    std::cerr << "AIC::start: no case configured; call build(case_toml) first" << std::endl;
+    return false;
+  }
   std::vector<DataType> A;
   std::vector<DataType> B;
   std::vector<AccType> C;
 
-  if (!read_case_and_bins(case_toml_path, cfg, A, B)) return false;
-  int A_rows = cfg.M; int A_cols = cfg.K;
-  int B_rows = cfg.K; int B_cols = cfg.N;
+  if (!read_bins_from_cfg(case_cfg_, A, B)) return false;
+  int A_rows = case_cfg_.M; int A_cols = case_cfg_.K;
+  int B_rows = case_cfg_.K; int B_cols = case_cfg_.N;
 
-  preload_into_mem(cfg, A, B);
+  preload_into_mem(case_cfg_, A, B);
 
   if (!cube_) {
-    std::cerr << "AIC::start: cube not constructed; call build(config_path) first" << std::endl;
+    std::cerr << "AIC::start: cube not constructed; call build(case_toml) first" << std::endl;
     return false;
   }
 
   bool ok = cube_->run(A, A_rows, A_cols, B, B_rows, B_cols, C);
   if (!ok) return false;
 
-  if (!write_and_compare(cfg, C, A, B)) return false;
+  if (!write_and_compare(case_cfg_, C, A, B)) return false;
 
   return true;
 }
