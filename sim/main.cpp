@@ -12,7 +12,7 @@
 
 static bool g_verbose = false;
 static int g_trace_cycles = 0;
-static std::string g_config_path = "model.toml";
+static std::string g_config_path = "config/model.toml";
 
 // `main` is intentionally minimal: this binary is the simulator entrypoint.
 // All automated tests live in `tests/` and are executed via the test runner.
