@@ -42,8 +42,7 @@ private:
     std::vector<Request> pending_requests;
 
 public:
-    Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_outstanding = -1,
-        p_clock_t clock = nullptr);
+    Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_outstanding = -1);
 
     // Configuration is read via per-key getters; struct-based API removed.
 

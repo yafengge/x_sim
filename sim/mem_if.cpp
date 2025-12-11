@@ -8,18 +8,17 @@
 // 实现 `Mem` 类的异步读/写请求队列、按周期推进的完成逻辑以及数据加载方法。
 // 该实现模拟带宽与延迟、突发读写并为上层提供完成队列回调风格的接口。
 
-Mem::Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_out, p_clock_t /*clock*/)
+Mem::Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_out)
     : latency(lat),
+      max_outstanding(max_out),
       issue_bw_read(issue_bw), issue_bw_write(issue_bw),
       complete_bw_read(complete_bw), complete_bw_write(complete_bw),
       current_cycle(0), issued_read_this_cycle(0), issued_write_this_cycle(0) {
-    if (max_out > 0) {
-        max_outstanding = max_out;
-    } else {
-        // 简单估计：完成带宽 * 延迟
+    // If caller passed <= 0 for max_out, estimate from complete bandwidth and latency
+    if (max_outstanding <= 0) {
         max_outstanding = complete_bw * latency;
     }
-    // 简单地把 size_kb 解释为元素数量（而不是字节），以便测试时足够
+    // Treat size_kb as number of elements for simplicity in tests
     memory.resize(size_kb);
 }
 
