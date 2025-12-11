@@ -36,9 +36,15 @@ TEST(Integration, SmallMatrix) {
                               0,0,1,0,
                               0,0,0,1};
     AIC aic(cfg);
-    auto cube = aic.get_cube();
+    auto clk = aic.build_clk();
+    auto memory = aic.build_mem(clk);
+    auto cube = aic.build_cube(clk, memory);
 
     std::vector<int32_t> C;
+
+    // preload A/B into memory model per-test
+    memory->load_data(A, 0);
+    memory->load_data(B, static_cast<uint32_t>(A.size()));
 
     EXPECT_TRUE(cube->matmul(A,4,4,B,4,4,C));
     EXPECT_TRUE(cube->verify_result(A,4,4,B,4,4,C));
@@ -57,13 +63,18 @@ TEST(Integration, QuickLarge) {
     std::string cfg = find_config_rel();
 
     AIC aic(cfg);
-
-    auto cube = aic.get_cube();
+    auto clk = aic.build_clk();
+    auto memory = aic.build_mem(clk);
+    auto cube = aic.build_cube(clk, memory);
 
     int M = 32; int K = 32; int N = 32;
     auto A = generate_random_matrix(M,K);
     auto B = generate_random_matrix(K,N);
     std::vector<int32_t> C;
+
+    // preload into memory model
+    memory->load_data(A, 0);
+    memory->load_data(B, static_cast<uint32_t>(A.size()));
 
     EXPECT_TRUE(cube->matmul(A,M,K,B,K,N,C));
     // Verify a small block to limit cost
@@ -91,9 +102,14 @@ TEST(Integration, DISABLED_DataflowModes) {
 
     
     AIC aic_w(cfg);
-    auto cube_w = aic_w.get_cube();
+    auto clk_w = aic_w.build_clk();
+    auto memory_w = aic_w.build_mem(clk_w);
+    auto cube_w = aic_w.build_cube(clk_w, memory_w);
     std::vector<int32_t> Cw;
-    ASSERT_TRUE(cube_w->matmul(A, M, K, B, K, N, Cw));
+    memory_w->load_data(A, 0);
+    memory_w->load_data(B, static_cast<uint32_t>(A.size()));
+    EXPECT_TRUE(cube_w->matmul(A, M, K, B, K, N, Cw));
+    EXPECT_TRUE(cube_w->verify_result(A, M, K, B, K, N, Cw));
 }
 
 // 慢速/扩展测试：DISABLED_Scaling
@@ -111,9 +127,14 @@ TEST(Integration, DISABLED_Scaling) {
     // Tests must now use the single `config/model.toml`. Keep the test disabled
     // and exercise a single run using the configured array size.
     AIC aic(cfg);
-    auto cube = aic.get_cube();
+    auto clk = aic.build_clk();
+    auto memory = aic.build_mem(clk);
+    auto cube = aic.build_cube(clk, memory);
     std::vector<int32_t> C;
-    ASSERT_TRUE(cube->matmul(A, M, K, B, K, N, C));
+    memory->load_data(A, 0);
+    memory->load_data(B, static_cast<uint32_t>(A.size()));
+    EXPECT_TRUE(cube->matmul(A, M, K, B, K, N, C));
+    EXPECT_TRUE(cube->verify_result(A, M, K, B, K, N, C));
 }
 
 // use gtest_main provided by the test target (no explicit main here)
