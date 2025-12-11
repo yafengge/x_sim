@@ -6,25 +6,12 @@
 
 #include <iostream>
 
-AIC::AIC(const std::string& config_path)
+AIC::AIC(const std::string& config_path,
+         const p_clock_t& clk,
+         const p_mem_t& mem)
   : config_path_(config_path) {
-  build_all();
-}
-
-void AIC::attach(const p_clock_t& clk,
-                 const p_mem_t& mem) {
-  if (!cube_) {
-    // Cube 将按需从配置文件读取参数
-    cube_ = p_cube_t(new Cube(config_path_, clk, mem));
-  }
-}
-
-
-
-void AIC::build_all() {
-  auto clk = std::make_shared<Clock>();
-  auto mem = std::make_shared<Mem>(clk, config_path_);
-  attach(clk, mem);
+  // construct Cube with provided clock and memory
+  cube_ = p_cube_t(new Cube(config_path_, clk, mem));
 }
 
 bool AIC::start(const std::vector<DataType>& A, int A_rows, int A_cols,

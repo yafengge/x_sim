@@ -15,14 +15,9 @@
 // AIC 封装顶层构建：clock、memory、cube，提供 build_* 接口便于模块化
 class AIC {
 public:
-    explicit AIC(const std::string& config_path = "config/model.toml");
-    // 分步构建接口已简化：`build_all` 直接创建内存并构造 Cube。
-
-    // Attach an existing Clock and Mem to the AIC instance and construct the Cube
-    // if not already created. Replaces the previous `build_cube` name.
-    void attach(const p_clock_t& clk, const p_mem_t& mem);
-    
-    void build_all();
+    explicit AIC(const std::string& config_path,
+                 const p_clock_t& clk,
+                 const p_mem_t& mem);
 
     // Access to the constructed Cube object (may be nullptr until built)
     p_cube_t get_cube() { return cube_; }

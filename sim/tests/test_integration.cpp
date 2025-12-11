@@ -36,10 +36,9 @@ TEST(Integration, SmallMatrix) {
                               0,1,0,0,
                               0,0,1,0,
                               0,0,0,1};
-    auto aic = std::make_shared<AIC>(cfg);
     auto clk = std::make_shared<Clock>();
     auto memory = std::make_shared<Mem>(clk, cfg);
-    aic->attach(clk, memory);
+    auto aic = std::make_shared<AIC>(cfg, clk, memory);
 
     std::vector<int32_t> C;
 
@@ -63,10 +62,9 @@ TEST(Integration, SmallMatrix) {
 TEST(Integration, QuickLarge) {
     std::string cfg = find_config_rel();
 
-    auto aic = std::make_shared<AIC>(cfg);
     auto clk = std::make_shared<Clock>();
     auto memory = std::make_shared<Mem>(clk, cfg);
-    aic->attach(clk, memory);
+    auto aic = std::make_shared<AIC>(cfg, clk, memory);
 
     int M = 32; int K = 32; int N = 32;
     auto A = util::generate_random_matrix(M,K);
@@ -103,10 +101,9 @@ TEST(Integration, DataflowModes) {
     auto B = util::generate_random_matrix(K,N);
 
     
-    auto aic_w = std::make_shared<AIC>(cfg);
     auto clk_w = std::make_shared<Clock>();
     auto memory_w = std::make_shared<Mem>(clk_w, cfg);
-    aic_w->attach(clk_w, memory_w);
+    auto aic_w = std::make_shared<AIC>(cfg, clk_w, memory_w);
     std::vector<int32_t> Cw;
     memory_w->load_data(A, 0);
     memory_w->load_data(B, static_cast<uint32_t>(A.size()));
@@ -129,10 +126,9 @@ TEST(Integration, Scaling) {
     // This disabled scaling test previously rewrote the config per-size.
     // Tests must now use the single `config/model.toml`. Keep the test disabled
     // and exercise a single run using the configured array size.
-    auto aic = std::make_shared<AIC>(cfg);
     auto clk = std::make_shared<Clock>();
     auto memory = std::make_shared<Mem>(clk, cfg);
-    aic->attach(clk, memory);
+    auto aic = std::make_shared<AIC>(cfg, clk, memory);
     
     std::vector<int32_t> C;
     memory->load_data(A, 0);
