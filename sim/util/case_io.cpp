@@ -176,7 +176,7 @@ bool read_case_toml(const std::string &path, CaseConfig &out) {
     return true;
 }
 
-bool create_case_files(const std::string &case_toml, CaseConfig &cfg,
+bool create_cube_case_config(const std::string &case_toml, CaseConfig &cfg,
                        const std::string &case_dir, const std::string &base_name,
                        const std::vector<int16_t> &A, const std::vector<int16_t> &B,
                        int M, int K, int N) {

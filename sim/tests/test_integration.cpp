@@ -51,7 +51,7 @@ TEST(Integration, SmallMatrix) {
                               0,0,0,1};
     // ensure case files exist; if not, generate binaries and write the toml
     if (!have_case) {
-        util::create_case_files(case_toml, case_cfg, case_dir, std::string("SmallMatrix"), A, B, 4, 4, 4);
+        util::create_cube_case_config(case_toml, case_cfg, case_dir, std::string("SmallMatrix"), A, B, 4, 4, 4);
     }
 
     auto clk = std::make_shared<Clock>();
@@ -100,7 +100,7 @@ TEST(Integration, QuickLarge) {
     auto B = util::generate_random_matrix(K,N);
 
     if (!have_case) {
-        util::create_case_files(case_toml, case_cfg, case_dir, std::string("QuickLarge"), A, B, M, K, N);
+        util::create_cube_case_config(case_toml, case_cfg, case_dir, std::string("QuickLarge"), A, B, M, K, N);
     }
 
     auto clk = std::make_shared<Clock>();
@@ -141,7 +141,7 @@ TEST(Integration, DataflowModes) {
     auto B = util::generate_random_matrix(K,N);
 
     if (!have_case) {
-        util::create_case_files(case_toml, case_cfg, case_dir, std::string("Dataflow"), A, B, M, K, N);
+        util::create_cube_case_config(case_toml, case_cfg, case_dir, std::string("Dataflow"), A, B, M, K, N);
     }
 
     auto clk_w = std::make_shared<Clock>();
@@ -174,7 +174,7 @@ TEST(Integration, Scaling) {
     auto A = util::generate_random_matrix(M,K);
     auto B = util::generate_random_matrix(K,N);
     if (!have_case) {
-        util::create_case_files(case_toml, case_cfg, case_dir, std::string("Scaling"), A, B, M, K, N);
+        util::create_cube_case_config(case_toml, case_cfg, case_dir, std::string("Scaling"), A, B, M, K, N);
     }
 
     auto clk = std::make_shared<Clock>();

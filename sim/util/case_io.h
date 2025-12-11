@@ -45,7 +45,11 @@ bool read_case_toml(const std::string &path, CaseConfig &out);
 // `case_dir/base_name_A.bin`, `base_name_B.bin`, `base_name_C_golden.bin` and
 // `base_name_C_out.bin`, set addresses and meta in `cfg`, write binaries and
 // the TOML. Returns true on success.
-bool create_case_files(const std::string &case_toml, CaseConfig &cfg,
+// Create a cube-focused case configuration and binaries for a given base name.
+// This will create `case_dir/base_name_A.bin`, `base_name_B.bin`,
+// `base_name_C_golden.bin` and `base_name_C_out.bin`, set addresses and meta
+// in `cfg`, write binaries and the TOML. Returns true on success.
+bool create_cube_case_config(const std::string &case_toml, CaseConfig &cfg,
                        const std::string &case_dir, const std::string &base_name,
                        const std::vector<int16_t> &A, const std::vector<int16_t> &B,
                        int M, int K, int N);
