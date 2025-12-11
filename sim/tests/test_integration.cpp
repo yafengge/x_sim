@@ -9,8 +9,8 @@
 #include "config/config_mgr.h"
 
 #include <gtest/gtest.h>
-#include <filesystem>
 #include "utils.h"
+#include <filesystem>
 // 集成测试：SmallMatrix
 //
 // 目的：使用一个确定性的 4x4 矩阵对验证阵列的基本正确性。
@@ -19,17 +19,23 @@
 // 2. 构建 `AIC` 并获取 `Cube`；
 // 3. 使用已知的 A、B 数据执行 `matmul`，并用软件参考实现 `verify_result` 校验结果。
 TEST(Integration, SmallMatrix) {
-    std::string cfg = "int_test_config.toml";
-    write_config_file(cfg, 4, 4);
+    auto find_config = []() -> std::string {
+        std::vector<std::string> candidates = {
+            std::string("../config.toml"),
+            std::string("config.toml"),
+            std::string("/home/steven/x_sim/sim/config.toml")
+        };
+        for (auto &c : candidates) if (std::filesystem::exists(c)) return c;
+        return std::string("config.toml");
+    };
+    std::string cfg = find_config();
 
     // Use on-disk case data if present. Case metadata file is named
     // `case_<casename>_.toml`. If it exists, load the A/B matrices from the
     // referenced binary files; otherwise create the matrices and write them
     // to disk for future runs.
     const std::string casename = "SmallMatrix";
-    const std::string cases_dir = "tests/cases";
-    std::filesystem::create_directories(cases_dir);
-    const std::string case_toml = cases_dir + "/case_" + casename + "_.toml";
+    const std::string case_toml = "case_" + casename + "_.toml";
 
     std::vector<int16_t> A;
     std::vector<int16_t> B;
@@ -42,8 +48,8 @@ TEST(Integration, SmallMatrix) {
         // generate and save
         A = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
         B = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
-        meta.a_path = cases_dir + "/" + casename + "_A.bin";
-        meta.b_path = cases_dir + "/" + casename + "_B.bin";
+        meta.a_path = casename + "_A.bin";
+        meta.b_path = casename + "_B.bin";
         meta.a_rows = 4; meta.a_cols = 4;
         meta.b_rows = 4; meta.b_cols = 4;
         ASSERT_TRUE(write_matrix_bin(meta.a_path, A));
@@ -70,9 +76,17 @@ TEST(Integration, SmallMatrix) {
 // 3. 生成随机矩阵 A、B，并调用 `cube->matmul` 执行仿真。
 // 4. 从得到的结果中抽取一个 4x4 子块，用软件实现的乘法进行对比验证。
 TEST(Integration, QuickLarge) {
-    std::string cfg = "int_test_config2.toml";
-    write_config_file(cfg, 8, 8);
-    
+    auto find_config = []() -> std::string {
+        std::vector<std::string> candidates = {
+            std::string("../config.toml"),
+            std::string("config.toml"),
+            std::string("/home/steven/x_sim/sim/config.toml")
+        };
+        for (auto &c : candidates) if (std::filesystem::exists(c)) return c;
+        return std::string("config.toml");
+    };
+    std::string cfg = find_config();
+
     AIC aic(cfg);
 
     auto cube = aic.get_cube();
@@ -101,7 +115,16 @@ TEST(Integration, QuickLarge) {
 // 说明：该测试较为耗时，会对同一输入在不同 dataflow 配置下运行完整仿真。
 // 默认以 DISABLED_ 前缀禁用；需要时通过 `--gtest_filter` 或取消 DISABLED_ 前缀启用。
 TEST(Integration, DISABLED_DataflowModes) {
-    std::string cfg = "int_df_config.toml";
+    auto find_config = []() -> std::string {
+        std::vector<std::string> candidates = {
+            std::string("../config.toml"),
+            std::string("config.toml"),
+            std::string("/home/steven/x_sim/sim/config.toml")
+        };
+        for (auto &c : candidates) if (std::filesystem::exists(c)) return c;
+        return std::string("config.toml");
+    };
+    std::string cfg = find_config();
     int M = 64, K = 64, N = 64;
     auto A = generate_random_matrix(M,K);
     auto B = generate_random_matrix(K,N);
@@ -111,25 +134,6 @@ TEST(Integration, DISABLED_DataflowModes) {
     auto cube_w = aic_w.get_cube();
     std::vector<int32_t> Cw;
     ASSERT_TRUE(cube_w->matmul(A, M, K, B, K, N, Cw));
-
-    // Output stationary
-    // write different config (dataflow handled via config_mgr if supported)
-    std::ofstream out(cfg);
-    out << "[cube]\narray_rows = 8\narray_cols = 8\nverbose = false\nprogress_interval = 0\ndataflow = \"OUTPUT_STATIONARY\"\n";
-    out.close();
-    AIC aic_o(cfg);
-    auto cube_o = aic_o.get_cube();
-    std::vector<int32_t> Co;
-    ASSERT_TRUE(cube_o->matmul(A, M, K, B, K, N, Co));
-
-    // Input stationary
-    std::ofstream out2(cfg);
-    out2 << "[cube]\narray_rows = 8\narray_cols = 8\nverbose = false\nprogress_interval = 0\ndataflow = \"INPUT_STATIONARY\"\n";
-    out2.close();
-    AIC aic_i(cfg);
-    auto cube_i = aic_i.get_cube();
-    std::vector<int32_t> Ci;
-    ASSERT_TRUE(cube_i->matmul(A, M, K, B, K, N, Ci));
 }
 
 // 慢速/扩展测试：DISABLED_Scaling
@@ -138,19 +142,27 @@ TEST(Integration, DISABLED_DataflowModes) {
 // 说明：此测试针对更大的输入（例如 256x256）进行多次仿真，运行时间较长，
 // 因此默认被禁用（以 `DISABLED_` 前缀）。
 TEST(Integration, DISABLED_Scaling) {
-    std::string cfg = "int_scale_config.toml";
+    auto find_config = []() -> std::string {
+        std::vector<std::string> candidates = {
+            std::string("../config.toml"),
+            std::string("config.toml"),
+            std::string("/home/steven/x_sim/sim/config.toml")
+        };
+        for (auto &c : candidates) if (std::filesystem::exists(c)) return c;
+        return std::string("config.toml");
+    };
+    std::string cfg = find_config();
     int M = 256, K = 256, N = 256;
     auto A = generate_random_matrix(M,K);
     auto B = generate_random_matrix(K,N);
 
-    std::vector<int> sizes = {4,8,16,32};
-    for (int size : sizes) {
-        write_config_file(cfg, size, size);
-        AIC aic(cfg);
-        auto cube = aic.get_cube();
-        std::vector<int32_t> C;
-        ASSERT_TRUE(cube->matmul(A, M, K, B, K, N, C));
-    }
+    // This disabled scaling test previously rewrote the config per-size.
+    // Tests must now use the single `config.toml`. Keep the test disabled
+    // and exercise a single run using the configured array size.
+    AIC aic(cfg);
+    auto cube = aic.get_cube();
+    std::vector<int32_t> C;
+    ASSERT_TRUE(cube->matmul(A, M, K, B, K, N, C));
 }
 
 // use gtest_main provided by the test target (no explicit main here)
