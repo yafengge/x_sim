@@ -48,7 +48,7 @@ TEST(Integration, SmallMatrix) {
     memory->load_data(B, static_cast<uint32_t>(A.size()));
 
     EXPECT_TRUE(cube->matmul(A,4,4,B,4,4,C));
-    EXPECT_TRUE(verify_result(A,4,4,B,4,4,C));
+    EXPECT_TRUE(xsim::util::verify_result(A,4,4,B,4,4,C));
 }
 
 // 集成测试：QuickLarge
