@@ -1,0 +1,13 @@
+# Auto-generated model config
+[cube]
+array_rows = 16
+array_cols = 16
+verbose = false
+trace_cycles = 0
+progress_interval = 0
+dataflow = "WEIGHT_STATIONARY"
+
+[memory]
+memory_latency = 10
+bandwidth = 4
+max_outstanding = 0
