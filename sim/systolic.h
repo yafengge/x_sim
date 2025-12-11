@@ -1,3 +1,6 @@
+// systolic.h — SystolicArray 顶层声明（中文注释）
+// 本头文件声明了脉动阵列（SystolicArray）以及辅助的双缓冲内存类型，
+// 用于周期级仿真矩阵乘法。注释以中文提供，便于中文阅读者理解设计。
 #ifndef SYSTOLIC_ARRAY_H
 #define SYSTOLIC_ARRAY_H
 

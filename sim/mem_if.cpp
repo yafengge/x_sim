@@ -4,6 +4,10 @@
 #include <cstddef>
 #include <memory>
 
+// mem_if.cpp — 内存模型实现（中文注释）
+// 实现 `Mem` 类的异步读/写请求队列、按周期推进的完成逻辑以及数据加载方法。
+// 该实现模拟带宽与延迟、突发读写并为上层提供完成队列回调风格的接口。
+
 Mem::Mem(int size_kb, int lat, int issue_bw, int complete_bw, int max_out, p_clock_t /*clock*/)
     : latency(lat),
       issue_bw_read(issue_bw), issue_bw_write(issue_bw),

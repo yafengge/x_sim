@@ -1,12 +1,16 @@
 #include "pe.h"
 #include <iostream>
 
+// pe.cpp — 处理单元（PE）实现（中文注释）
+// 每个 PE 实现局部乘加逻辑、流水线寄存器与两阶段提交（tick/commit）机制，
+// 该文件实现了 PE 的重置、加载权重、计算周期与调试打印功能。
 PE::PE(int x, int y) 
     : id_x(x), id_y(y), weight(0), activation(0), 
       accumulator(0), weight_valid(false), active(false) {
     reset();
 }
 
+// 将 PE 状态复位到初始值（在新的仿真/Tile 开始前使用）
 void PE::reset() {
     weight = 0;
     activation = 0;
@@ -19,37 +23,32 @@ void PE::reset() {
     pipeline_reg.staged_weight_valid = false;
 }
 
+// 加载权重到 PE（通常由阵列控制器广播）
 void PE::load_weight(DataType w) {
     weight = w;
     weight_valid = true;
     active = true;
 }
 
-// Prepare inputs for tick-driven execution
+// 为基于时钟的执行准备输入（不立即更新可见寄存器）
 void PE::prepare_inputs(DataType act_in, AccType psum_in, DataType weight_in, bool weight_present) {
-    // stage inputs into pipeline registers (do not update visible registers yet)
     pipeline_reg.activation = act_in;
     pipeline_reg.partial_sum = psum_in;
-    // stage weight for this cycle; actual update happens in commit(); record presence
     pipeline_reg.staged_weight = weight_in;
     pipeline_reg.staged_weight_valid = weight_present;
 }
 
-// Execute one tick: perform compute based on prepared inputs
+// 在 tick 时执行一次计算周期：使用已阶段化的输入更新流水线寄存器
 void PE::tick() {
     DataType act_out;
     AccType psum_out;
-    // use staged inputs; compute and update pipeline_reg but do not make values visible
     compute_cycle(pipeline_reg.activation, pipeline_reg.partial_sum, act_out, psum_out);
 }
 
-// Commit the staged next-state into visible registers (two-phase commit)
+// 两阶段提交：把流水线寄存器的值一次性写回到可见寄存器，保证同步语义
 void PE::commit() {
-    // Always commit staged activation/psum to make sure zeros propagate and
-    // accumulators do not stick across idle cycles.
     activation = pipeline_reg.activation;
     accumulator = pipeline_reg.partial_sum;
-    // apply staged weight if present
     if (pipeline_reg.staged_weight_valid) {
         weight = pipeline_reg.staged_weight;
         weight_valid = true;
@@ -58,31 +57,23 @@ void PE::commit() {
     }
 }
 
+// 单个周期内的计算逻辑（不直接写回可见寄存器）
 void PE::compute_cycle(DataType act_in, AccType psum_in,
                                       DataType& act_out, AccType& psum_out) {
-    // 传递并转发激活值（右移）：当前周期应将输入激活向右传递
     act_out = act_in;
-
-    // 正确的MAC计算：优先使用本周期阶段性提供的权重（staged），否则使用可见权重
     AccType mac_result = 0;
     DataType used_weight = pipeline_reg.staged_weight_valid ? pipeline_reg.staged_weight : weight;
     bool used_weight_valid = pipeline_reg.staged_weight_valid ? true : weight_valid;
     if (used_weight_valid && act_in != 0) {
         mac_result = static_cast<AccType>(act_in) * static_cast<AccType>(used_weight);
     }
-
-    // 计算新的部分和并返回给调用者（不在此直接写回累加器，
-    // 由上层在同步阶段一次性写回以保证时序一致性）
     AccType new_psum = psum_in + mac_result;
     psum_out = new_psum;
-
-    // 更新流水线寄存器（不要直接更新可见寄存器，这将在 commit 阶段进行）
     pipeline_reg.activation = act_in;
     pipeline_reg.partial_sum = new_psum;
-    // keep the valid bit set by prepare_inputs so commit always runs; do not
-    // gate commits on non-zero activations to avoid stuck activations.
 }
 
+// 调试用：打印 PE 状态
 void PE::print_state() const {
     std::cout << "PE(" << id_x << "," << id_y << "): "
               << "W=" << weight << " A=" << activation 

@@ -1,3 +1,6 @@
+// fifo.h — 简单环形 FIFO（中文注释）
+// 本文件实现了用于 PE/阵列内部的轻量环形 FIFO 结构，支持基本的 push/pop 操作
+// 以及重置操作。该实现为仿真提供简洁的队列语义。
 #ifndef SYSTOLIC_FIFO_H
 #define SYSTOLIC_FIFO_H
 

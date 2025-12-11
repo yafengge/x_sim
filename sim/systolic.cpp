@@ -1,3 +1,5 @@
+// systolic.cpp — SystolicArray 实现（中文注释）
+// 本文件包含脉动阵列的周期级实现：预取、tile 处理、PE 调度、统计以及验证逻辑。
 #include "systolic.h"
 #include "clock.h"
 #include "config/config_mgr.h"

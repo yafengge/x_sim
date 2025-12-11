@@ -1,3 +1,7 @@
+// aic.cpp — AIC 顶层实现（中文注释）
+// 本文件实现 AIC 类的组装逻辑：创建时钟、内存并构建 Cube 实例。
+// 注意：此处仅为模块组装，不包含仿真的内部细节，这些在子模块中实现。
+
 #include "aic.h"
 
 #include <iostream>
@@ -10,7 +14,7 @@ AIC::AIC(const std::string& config_path)
 p_cube_t AIC::build_cube(const p_clock_t& clk,
                             const p_mem_t& mem) {
   if (!cube_) {
-    // Cube will read configuration on demand from the provided config path
+    // Cube 将按需从配置文件读取参数
     cube_ = p_cube_t(new Cube(config_path_, clk, mem));
   }
   return cube_;
@@ -21,7 +25,7 @@ p_clock_t AIC::build_clk() {
 }
 
 p_mem_t AIC::build_mem(const p_clock_t& clk) {
-  // Read memory configuration values on demand (no caching)
+  // 按需读取内存相关配置（不缓存）
   int mem_latency = 10;
   int bw = 4;
   int max_outstanding = 0;

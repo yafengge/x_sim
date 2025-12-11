@@ -1,3 +1,7 @@
+// mem_if.h — 内存接口（中文注释）
+// 定义了仿真中的内存模型接口 `Mem`，支持异步读写请求、突发读取、
+// 完成队列（completion queue）以及按周期推进的行为。外部驱动通过
+// 提交请求并在完成队列中读取数据来与内存模型交互。
 #ifndef MEMORY_INTERFACE_H
 #define MEMORY_INTERFACE_H
 
