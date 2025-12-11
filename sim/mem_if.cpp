@@ -47,6 +47,9 @@ void Mem::config(const std::string &config_path) {
         // no explicit size configured, keep default
     }
     memory_.resize(size_kb);
+
+    // ensure accumulator memory is at least the same size (one-to-one mapping)
+    acc_memory_.resize(memory_.size());
 }
 
 
@@ -150,4 +153,20 @@ void Mem::load_data(const std::vector<DataType>& data, uint32_t offset) {
     for (std::size_t i = 0; i < data.size(); ++i) {
         memory_[offset + i] = data[i];
     }
+}
+
+void Mem::store_acc_direct(uint32_t addr, AccType val) {
+    if (addr >= acc_memory_.size()) {
+        // expand accumulator storage if needed
+        acc_memory_.resize(addr + 1);
+    }
+    acc_memory_[addr] += val;
+}
+
+bool Mem::dump_acc(uint32_t addr, size_t len, std::vector<AccType>& out) const {
+    if (len == 0) { out.clear(); return true; }
+    if (addr + len > acc_memory_.size()) return false;
+    out.resize(len);
+    for (size_t i = 0; i < len; ++i) out[i] = acc_memory_[addr + i];
+    return true;
 }

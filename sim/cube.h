@@ -27,6 +27,11 @@ public:
              const std::vector<DataType>& B, int B_rows, int B_cols,
              std::vector<AccType>& C);
 
+    // Run using data already loaded into memory. `a_addr`, `b_addr`, and
+    // `c_addr` are the base addresses where A, B and C (accumulators) reside.
+    bool run_from_memory(int M, int N, int K,
+                         uint32_t a_addr, uint32_t b_addr, uint32_t c_addr);
+
     // Note: result verification has been moved to a standalone utility function
     // `verify_result(...)` available in `util/verify.h`.
 

@@ -40,3 +40,8 @@ bool Cube::run(const std::vector<DataType>& A, int A_rows, int A_cols,
     return systolic_->run(A, A_rows, A_cols, B, B_rows, B_cols, C);
 }
 
+bool Cube::run_from_memory(int M, int N, int K,
+                          uint32_t a_addr, uint32_t b_addr, uint32_t c_addr) {
+    return systolic_->run_from_memory(M, N, K, a_addr, b_addr, c_addr);
+}
+

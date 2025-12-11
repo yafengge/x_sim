@@ -128,6 +128,13 @@ public:
     bool run(const std::vector<DataType>& A, int A_rows, int A_cols,
              const std::vector<DataType>& B, int B_rows, int B_cols,
              std::vector<AccType>& C);
+
+    // Run the array using data already present in `memory` at the provided
+    // addresses. The array will issue read requests to `memory` and commit
+    // accumulator results back into memory via `store_acc_direct` at offsets
+    // starting at `c_addr`.
+    bool run_from_memory(int M, int N, int K,
+                         uint32_t a_addr, uint32_t b_addr, uint32_t c_addr);
     
     // 单周期推进
     void cycle();

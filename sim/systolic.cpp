@@ -94,6 +94,181 @@ bool SystolicArray::run(const std::vector<DataType>& A, int A_rows, int A_cols,
     return true;
 }
 
+bool SystolicArray::run_from_memory(int M, int N, int K,
+                                   uint32_t a_addr, uint32_t b_addr, uint32_t c_addr) {
+    // Similar to run(...), but inputs A/B are read from memory at provided
+    // base addresses and results are written back into accumulator memory
+    // starting at c_addr via Mem::store_acc_direct.
+
+    // Basic checks
+    if (K <= 0 || M <= 0 || N <= 0) {
+        std::cerr << "run_from_memory: invalid dimensions" << std::endl;
+        return false;
+    }
+
+    // Reset array state
+    reset();
+
+    int tiles_total = ((M + cfg_array_rows - 1) / cfg_array_rows) *
+                      ((N + cfg_array_cols - 1) / cfg_array_cols) *
+                      ((K + cfg_array_cols - 1) / cfg_array_cols);
+    int tiles_done = 0;
+
+    // Preallocate local FIFO pools
+    std::vector<FIFO> localA_pool(cfg_array_rows);
+    std::vector<FIFO> localB_pool(cfg_array_cols);
+
+    for (int mb = 0; mb < M; mb += cfg_array_rows) {
+        int m_tile = std::min(cfg_array_rows, M - mb);
+        for (int nb = 0; nb < N; nb += cfg_array_cols) {
+            int n_tile = std::min(cfg_array_cols, N - nb);
+            for (int kb = 0; kb < K; kb += cfg_array_cols) {
+                int k_tile = std::min(cfg_array_cols, K - kb);
+
+                for (int i = 0; i < m_tile; ++i) localA_pool[i].reset(k_tile + 4);
+                for (int j = 0; j < n_tile; ++j) localB_pool[j].reset(k_tile + 4);
+
+                // Issue read requests for A (rows)
+                size_t queue_depth = k_tile + 4;
+                std::vector<std::shared_ptr<std::deque<DataType>>> completionA(m_tile);
+                std::vector<std::shared_ptr<std::deque<DataType>>> completionB(n_tile);
+                for (int i = 0; i < m_tile; ++i) {
+                    completionA[i] = completionA_pool[i]; completionA[i]->clear();
+                }
+                for (int j = 0; j < n_tile; ++j) {
+                    completionB[j] = completionB_pool[j]; completionB[j]->clear();
+                }
+
+                for (int i = 0; i < m_tile; ++i) {
+                    uint32_t addrA = static_cast<uint32_t>((mb + i) * K + kb) + a_addr;
+                    while (!memory->read_request(addrA, completionA[i], queue_depth, static_cast<size_t>(k_tile))) {
+                        stats.memory_backpressure_cycles++;
+                        if (clock) clock->tick();
+                    }
+                    stats.memory_accesses += static_cast<uint64_t>(k_tile);
+                }
+
+                for (int kk = 0; kk < k_tile; ++kk) {
+                    int k_idx = kb + kk;
+                    for (int j = 0; j < n_tile; ++j) {
+                        uint32_t addrB = static_cast<uint32_t>(k_idx * N + (nb + j)) + b_addr;
+                        while (!memory->read_request(addrB, completionB[j], queue_depth)) {
+                            stats.memory_backpressure_cycles++;
+                            if (clock) clock->tick();
+                        }
+                        stats.memory_accesses++;
+                    }
+                }
+
+                // Wait until local FIFOs populated
+                int max_wait = 10000;
+                int waited = 0;
+                while (waited < max_wait) {
+                    for (int i = 0; i < m_tile; ++i) {
+                        auto &q = completionA[i];
+                        while (q && !q->empty() && !localA_pool[i].full()) {
+                            DataType v = q->front(); q->pop_front(); localA_pool[i].push(v);
+                        }
+                    }
+                    for (int j = 0; j < n_tile; ++j) {
+                        auto &q = completionB[j];
+                        while (q && !q->empty() && !localB_pool[j].full()) {
+                            DataType v = q->front(); q->pop_front(); localB_pool[j].push(v);
+                        }
+                    }
+                    bool ready = true;
+                    for (int i = 0; i < m_tile; ++i) if (localA_pool[i].count < k_tile) { ready = false; break; }
+                    for (int j = 0; j < n_tile && ready; ++j) if (localB_pool[j].count < k_tile) { ready = false; break; }
+                    if (ready) break;
+                    if (clock) clock->tick();
+                    waited++;
+                }
+                if (waited >= max_wait) std::cerr << "Warning: tile preload timeout" << std::endl;
+                stats.load_cycles += waited;
+
+                // process_tile-like loop but writing results into memory accumulators
+                int mem_lat = memory ? memory->get_latency() : 0;
+                int total_cycles = k_tile + m_tile + n_tile + mem_lat;
+                std::vector<DataType> left_in(m_tile, 0);
+                std::vector<DataType> top_in(n_tile, 0);
+
+                for (int i = 0; i < m_tile; ++i) {
+                    for (int j = 0; j < n_tile; ++j) {
+                        pes[i][j].set_accumulator(0);
+                        pes[i][j].set_activation(0);
+                    }
+                }
+
+                for (int t = 0; t < total_cycles; ++t) {
+                    for (int i = 0; i < m_tile; ++i) left_in[i] = 0;
+                    for (int j = 0; j < n_tile; ++j) top_in[j] = 0;
+
+                    for (int i = 0; i < m_tile; ++i) {
+                        int kk_required = t - i;
+                        if (kk_required >= 0 && kk_required < k_tile) {
+                            DataType v;
+                            if (localA_pool[i].pop(v)) left_in[i] = v;
+                        }
+                    }
+                    std::vector<char> top_valid(n_tile, 0);
+                    for (int j = 0; j < n_tile; ++j) {
+                        int kk_required = t - j;
+                        if (kk_required >= 0 && kk_required < k_tile) {
+                            DataType v;
+                            if (localB_pool[j].pop(v)) { top_in[j] = v; top_valid[j] = 1; }
+                        }
+                    }
+
+                    for (int i = 0; i < m_tile; ++i) {
+                        for (int j = 0; j < n_tile; ++j) {
+                            DataType act_in = 0;
+                            AccType psum_in = 0;
+                            DataType weight_in = 0;
+                            bool weight_present = false;
+                            if (j > 0) act_in = pes[i][j-1].get_activation(); else act_in = left_in[i];
+                            psum_in = pes[i][j].get_accumulator();
+                            if (i > 0) {
+                                weight_in = pes[i-1][j].get_weight();
+                                weight_present = pes[i-1][j].has_weight();
+                            } else {
+                                weight_in = top_in[j];
+                                weight_present = top_valid[j];
+                            }
+                            pes[i][j].prepare_inputs(act_in, psum_in, weight_in, weight_present);
+                            if (pes[i][j].has_weight() && act_in != 0) stats.mac_operations++;
+                        }
+                    }
+
+                    if (clock) clock->tick();
+                    stats.compute_cycles++;
+                }
+
+                // Commit accumulators into memory via store_acc_direct
+                for (int i = 0; i < m_tile; ++i) {
+                    for (int j = 0; j < n_tile; ++j) {
+                        int idx = (mb + i) * N + (nb + j);
+                        AccType val = pes[i][j].get_accumulator();
+                        if (memory) memory->store_acc_direct(static_cast<uint32_t>(c_addr + idx), val);
+                        if (cfg_verbose && m_tile <= 4 && n_tile <= 4) {
+                            std::cout << "Commit C("<< (mb+i) <<","<<(nb+j)<<") += "<< val <<"\n";
+                        }
+                    }
+                }
+
+                tiles_done++;
+                if (cfg_progress_interval > 0 && (tiles_done % cfg_progress_interval) == 0) {
+                    std::cout << "Completed " << tiles_done << " / " << tiles_total << " tiles (" \
+                              << (100.0 * tiles_done / tiles_total) << "% )" << std::endl;
+                }
+            }
+        }
+    }
+
+    current_state = State::DONE;
+    std::cout << "Matrix multiplication completed in " << current_cycle << " cycles" << std::endl;
+    return true;
+}
+
 // Helper: prefetch a tile's A/B data into local FIFOs
 void SystolicArray::prefetch_tile(const std::vector<DataType>& A, int A_cols,
                                   const std::vector<DataType>& B, int B_cols,

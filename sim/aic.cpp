@@ -214,10 +214,23 @@ bool AIC::start() {
     return false;
   }
 
-  bool ok = cube_->run(A, A_rows, A_cols, B, B_rows, B_cols, C);
+  // Run the cube using memory-resident inputs. The Cube/SystolicArray will
+  // read A/B from memory at the configured addresses and commit results into
+  // the accumulator region starting at cfg.c_addr. After the run, dump the
+  // accumulator region back into `C` for writing/comparison.
+  bool ok = cube_->run_from_memory(case_cfg_.M, case_cfg_.N, case_cfg_.K,
+                                   case_cfg_.a_addr, case_cfg_.b_addr, case_cfg_.c_addr);
   if (!ok) return false;
 
-  if (!write_and_compare(case_cfg_, C, A, B)) return false;
+  // Read results back from memory
+  size_t c_len = static_cast<size_t>(case_cfg_.M) * static_cast<size_t>(case_cfg_.N);
+  std::vector<AccType> Cacc;
+  if (!mem_->dump_acc(case_cfg_.c_addr, c_len, Cacc)) {
+    std::cerr << "AIC::start: failed to dump accumulator memory at " << case_cfg_.c_addr << std::endl;
+    return false;
+  }
+
+  if (!write_and_compare(case_cfg_, Cacc, A, B)) return false;
 
   return true;
 }

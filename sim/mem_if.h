@@ -18,6 +18,8 @@ class Clock;
 class Mem {
 private:
     std::vector<DataType> memory_;
+    // accumulator memory region (stores 32-bit accumulator results)
+    std::vector<AccType> acc_memory_;
     int latency_;
     int max_outstanding_;
     int issue_bw_read_;
@@ -61,6 +63,13 @@ public:
     bool has_pending() const { return !pending_requests_.empty(); }
     // Expose configured latency for callers
     int get_latency() const { return latency_; }
+
+    // Store accumulator (32-bit) values directly into an accumulator memory
+    // region. These are synchronous helpers used by the Cube to commit results.
+    void store_acc_direct(uint32_t addr, AccType val);
+
+    // Dump a contiguous range of accumulator values into `out` (returns true on success)
+    bool dump_acc(uint32_t addr, size_t len, std::vector<AccType>& out) const;
 
 private:
     // Load configuration values from `path` into member variables.
