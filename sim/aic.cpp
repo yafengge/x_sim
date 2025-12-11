@@ -22,14 +22,8 @@ p_cube_t AIC::attach(const p_clock_t& clk,
 
 
 
-p_mem_t AIC::build_mem(const p_clock_t& clk) {
-  // Let Mem read its own configuration from the configured path. Pass the
-  // AIC's config path so tests / users can control which config is used.
-  return p_mem_t(new Mem(clk, config_path_));
-}
-
 void AIC::build_all() {
   auto clk = std::make_shared<Clock>();
-  auto mem = build_mem(clk);
+  auto mem = std::make_shared<Mem>(clk, config_path_);
   attach(clk, mem);
 }

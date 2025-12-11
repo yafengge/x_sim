@@ -20,9 +20,7 @@ public:
 
     // (Configuration is read on-demand via per-key getters; no in-memory struct)
 
-    // 访问内部的脉动阵列实例
-    SystolicArray& array() { return *systolic_; }
-    const SystolicArray& array() const { return *systolic_; }
+    // (Internal SystolicArray accessors removed — not part of public API.)
 
     // Provide top-level convenience methods that forward to the internal SystolicArray
     bool matmul(const std::vector<DataType>& A, int A_rows, int A_cols,

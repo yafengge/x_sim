@@ -36,10 +36,10 @@ TEST(Integration, SmallMatrix) {
                               0,1,0,0,
                               0,0,1,0,
                               0,0,0,1};
-    AIC aic(cfg);
+    auto aic = std::make_shared<AIC>(cfg);
     auto clk = std::make_shared<Clock>();
-    auto memory = aic.build_mem(clk);
-    auto cube = aic.attach(clk, memory);
+    auto memory = std::make_shared<Mem>(clk, cfg);
+    auto cube = aic->attach(clk, memory);
 
     std::vector<int32_t> C;
 
@@ -63,10 +63,10 @@ TEST(Integration, SmallMatrix) {
 TEST(Integration, QuickLarge) {
     std::string cfg = find_config_rel();
 
-    AIC aic(cfg);
+    auto aic = std::make_shared<AIC>(cfg);
     auto clk = std::make_shared<Clock>();
-    auto memory = aic.build_mem(clk);
-    auto cube = aic.attach(clk, memory);
+    auto memory = std::make_shared<Mem>(clk, cfg);
+    auto cube = aic->attach(clk, memory);
 
     int M = 32; int K = 32; int N = 32;
     auto A = xsim::util::generate_random_matrix(M,K);
@@ -95,17 +95,17 @@ TEST(Integration, QuickLarge) {
 // 目的：验证不同数据流策略（WEIGHT/OUTPUT/INPUT stationary）对阵列行为的影响。
 // 说明：该测试较为耗时，会对同一输入在不同 dataflow 配置下运行完整仿真。
 // 默认以 DISABLED_ 前缀禁用；需要时通过 `--gtest_filter` 或取消 DISABLED_ 前缀启用。
-TEST(Integration, DISABLED_DataflowModes) {
+TEST(Integration, DataflowModes) {
     std::string cfg = find_config_rel();
     int M = 64, K = 64, N = 64;
     auto A = xsim::util::generate_random_matrix(M,K);
     auto B = xsim::util::generate_random_matrix(K,N);
 
     
-    AIC aic_w(cfg);
+    auto aic_w = std::make_shared<AIC>(cfg);
     auto clk_w = std::make_shared<Clock>();
-    auto memory_w = aic_w.build_mem(clk_w);
-    auto cube_w = aic_w.attach(clk_w, memory_w);
+    auto memory_w = std::make_shared<Mem>(clk_w, cfg);
+    auto cube_w = aic_w->attach(clk_w, memory_w);
     std::vector<int32_t> Cw;
     memory_w->load_data(A, 0);
     memory_w->load_data(B, static_cast<uint32_t>(A.size()));
@@ -114,12 +114,12 @@ TEST(Integration, DISABLED_DataflowModes) {
     EXPECT_TRUE(xsim::util::verify_result(A, M, K, B, K, N, Cw));
 }
 
-// 慢速/扩展测试：DISABLED_Scaling
+
 //
 // 目的：测试不同阵列尺寸（4、8、16、32 等）下的矩阵乘法可扩展性与正确性。
 // 说明：此测试针对更大的输入（例如 256x256）进行多次仿真，运行时间较长，
 // 因此默认被禁用（以 `DISABLED_` 前缀）。
-TEST(Integration, DISABLED_Scaling) {
+TEST(Integration, Scaling) {
     std::string cfg = find_config_rel();
     int M = 256, K = 256, N = 256;
     auto A = xsim::util::generate_random_matrix(M,K);
@@ -128,10 +128,10 @@ TEST(Integration, DISABLED_Scaling) {
     // This disabled scaling test previously rewrote the config per-size.
     // Tests must now use the single `config/model.toml`. Keep the test disabled
     // and exercise a single run using the configured array size.
-    AIC aic(cfg);
+    auto aic = std::make_shared<AIC>(cfg);
     auto clk = std::make_shared<Clock>();
-    auto memory = aic.build_mem(clk);
-    auto cube = aic.attach(clk, memory);
+    auto memory = std::make_shared<Mem>(clk, cfg);
+    auto cube = aic->attach(clk, memory);
     
     std::vector<int32_t> C;
     memory->load_data(A, 0);
