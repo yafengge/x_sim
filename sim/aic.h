@@ -27,6 +27,11 @@ public:
     // Access to the constructed Cube object (may be nullptr until built)
     p_cube_t get_cube() { return cube_; }
 
+    // Start a matrix multiply run via the attached Cube. Returns false if Cube not attached.
+    bool start(const std::vector<DataType>& A, int A_rows, int A_cols,
+               const std::vector<DataType>& B, int B_rows, int B_cols,
+               std::vector<AccType>& C);
+
 private:
     std::string config_path_;
     p_cube_t cube_;

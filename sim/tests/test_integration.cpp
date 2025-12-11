@@ -47,7 +47,7 @@ TEST(Integration, SmallMatrix) {
     memory->load_data(A, 0);
     memory->load_data(B, static_cast<uint32_t>(A.size()));
 
-    EXPECT_TRUE(cube->run(A,4,4,B,4,4,C));
+    EXPECT_TRUE(aic->start(A,4,4,B,4,4,C));
     EXPECT_TRUE(util::verify_result(A,4,4,B,4,4,C));
 }
 
@@ -77,7 +77,7 @@ TEST(Integration, QuickLarge) {
     memory->load_data(A, 0);
     memory->load_data(B, static_cast<uint32_t>(A.size()));
 
-    EXPECT_TRUE(cube->run(A,M,K,B,K,N,C));
+    EXPECT_TRUE(aic->start(A,M,K,B,K,N,C));
     // Verify a small block to limit cost
     std::vector<int16_t> A_block(4*K);
     std::vector<int16_t> B_block(K*4);
@@ -111,7 +111,7 @@ TEST(Integration, DataflowModes) {
     memory_w->load_data(A, 0);
     memory_w->load_data(B, static_cast<uint32_t>(A.size()));
 
-    EXPECT_TRUE(cube_w->run(A, M, K, B, K, N, Cw));
+    EXPECT_TRUE(aic_w->start(A, M, K, B, K, N, Cw));
     EXPECT_TRUE(util::verify_result(A, M, K, B, K, N, Cw));
 }
 
@@ -138,7 +138,7 @@ TEST(Integration, Scaling) {
     memory->load_data(A, 0);
     memory->load_data(B, static_cast<uint32_t>(A.size()));
 
-    EXPECT_TRUE(cube->run(A, M, K, B, K, N, C));
+    EXPECT_TRUE(aic->start(A, M, K, B, K, N, C));
     EXPECT_TRUE(util::verify_result(A, M, K, B, K, N, C));
 }
 

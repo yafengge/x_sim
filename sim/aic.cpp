@@ -27,3 +27,13 @@ void AIC::build_all() {
   auto mem = std::make_shared<Mem>(clk, config_path_);
   attach(clk, mem);
 }
+
+bool AIC::start(const std::vector<DataType>& A, int A_rows, int A_cols,
+                const std::vector<DataType>& B, int B_rows, int B_cols,
+                std::vector<AccType>& C) {
+  if (!cube_) {
+    std::cerr << "AIC::start: cube not constructed/attached" << std::endl;
+    return false;
+  }
+  return cube_->run(A, A_rows, A_cols, B, B_rows, B_cols, C);
+}
