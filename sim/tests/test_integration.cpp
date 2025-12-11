@@ -9,6 +9,7 @@
 #include "config/config_mgr.h"
 
 #include <gtest/gtest.h>
+#include <filesystem>
 #include "utils.h"
 // 集成测试：SmallMatrix
 //
@@ -20,11 +21,39 @@
 TEST(Integration, SmallMatrix) {
     std::string cfg = "int_test_config.toml";
     write_config_file(cfg, 4, 4);
+
+    // Use on-disk case data if present. Case metadata file is named
+    // `case_<casename>_.toml`. If it exists, load the A/B matrices from the
+    // referenced binary files; otherwise create the matrices and write them
+    // to disk for future runs.
+    const std::string casename = "SmallMatrix";
+    const std::string cases_dir = "tests/cases";
+    std::filesystem::create_directories(cases_dir);
+    const std::string case_toml = cases_dir + "/case_" + casename + "_.toml";
+
+    std::vector<int16_t> A;
+    std::vector<int16_t> B;
+    CaseMeta meta;
+    if (read_case_toml(case_toml, meta)) {
+        // load from disk
+        ASSERT_TRUE(read_matrix_bin(meta.a_path, A));
+        ASSERT_TRUE(read_matrix_bin(meta.b_path, B));
+    } else {
+        // generate and save
+        A = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
+        B = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+        meta.a_path = cases_dir + "/" + casename + "_A.bin";
+        meta.b_path = cases_dir + "/" + casename + "_B.bin";
+        meta.a_rows = 4; meta.a_cols = 4;
+        meta.b_rows = 4; meta.b_cols = 4;
+        ASSERT_TRUE(write_matrix_bin(meta.a_path, A));
+        ASSERT_TRUE(write_matrix_bin(meta.b_path, B));
+        ASSERT_TRUE(write_case_toml(case_toml, meta));
+    }
+
     AIC aic(cfg);
     auto cube = aic.get_cube();
 
-    std::vector<int16_t> A = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
-    std::vector<int16_t> B = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
     std::vector<int32_t> C;
 
     EXPECT_TRUE(cube->matmul(A,4,4,B,4,4,C));
@@ -77,8 +106,7 @@ TEST(Integration, DISABLED_DataflowModes) {
     auto A = generate_random_matrix(M,K);
     auto B = generate_random_matrix(K,N);
 
-    // Weight stationary
-    write_config_file(cfg, 8, 8);
+    
     AIC aic_w(cfg);
     auto cube_w = aic_w.get_cube();
     std::vector<int32_t> Cw;
