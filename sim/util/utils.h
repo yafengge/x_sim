@@ -3,6 +3,9 @@
 #include <string>
 
 // Helpers moved from tests/utils.* to util/ to be shared by tests and tools.
+namespace xsim {
+namespace util {
+
 std::vector<int16_t> generate_random_matrix(int rows, int cols, int min_val = -128, int max_val = 127);
 
 void write_config_file(const std::string& path, int array_rows, int array_cols);
@@ -23,3 +26,6 @@ struct CaseMeta {
 
 bool write_case_toml(const std::string& path, const CaseMeta& meta);
 bool read_case_toml(const std::string& path, CaseMeta& meta);
+
+} // namespace util
+} // namespace xsim
