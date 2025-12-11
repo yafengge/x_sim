@@ -11,13 +11,12 @@ AIC::AIC(const std::string& config_path)
   build_all();
 }
 
-p_cube_t AIC::attach(const p_clock_t& clk,
-                            const p_mem_t& mem) {
+void AIC::attach(const p_clock_t& clk,
+                 const p_mem_t& mem) {
   if (!cube_) {
     // Cube 将按需从配置文件读取参数
     cube_ = p_cube_t(new Cube(config_path_, clk, mem));
   }
-  return cube_;
 }
 
 

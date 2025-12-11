@@ -20,7 +20,7 @@ public:
 
     // Attach an existing Clock and Mem to the AIC instance and construct the Cube
     // if not already created. Replaces the previous `build_cube` name.
-    p_cube_t attach(const p_clock_t& clk, const p_mem_t& mem);
+    void attach(const p_clock_t& clk, const p_mem_t& mem);
     
     void build_all();
 

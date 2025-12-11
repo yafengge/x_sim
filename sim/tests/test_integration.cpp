@@ -39,7 +39,7 @@ TEST(Integration, SmallMatrix) {
     auto aic = std::make_shared<AIC>(cfg);
     auto clk = std::make_shared<Clock>();
     auto memory = std::make_shared<Mem>(clk, cfg);
-    auto cube = aic->attach(clk, memory);
+    aic->attach(clk, memory);
 
     std::vector<int32_t> C;
 
@@ -66,7 +66,7 @@ TEST(Integration, QuickLarge) {
     auto aic = std::make_shared<AIC>(cfg);
     auto clk = std::make_shared<Clock>();
     auto memory = std::make_shared<Mem>(clk, cfg);
-    auto cube = aic->attach(clk, memory);
+    aic->attach(clk, memory);
 
     int M = 32; int K = 32; int N = 32;
     auto A = util::generate_random_matrix(M,K);
@@ -106,7 +106,7 @@ TEST(Integration, DataflowModes) {
     auto aic_w = std::make_shared<AIC>(cfg);
     auto clk_w = std::make_shared<Clock>();
     auto memory_w = std::make_shared<Mem>(clk_w, cfg);
-    auto cube_w = aic_w->attach(clk_w, memory_w);
+    aic_w->attach(clk_w, memory_w);
     std::vector<int32_t> Cw;
     memory_w->load_data(A, 0);
     memory_w->load_data(B, static_cast<uint32_t>(A.size()));
@@ -132,7 +132,7 @@ TEST(Integration, Scaling) {
     auto aic = std::make_shared<AIC>(cfg);
     auto clk = std::make_shared<Clock>();
     auto memory = std::make_shared<Mem>(clk, cfg);
-    auto cube = aic->attach(clk, memory);
+    aic->attach(clk, memory);
     
     std::vector<int32_t> C;
     memory->load_data(A, 0);
