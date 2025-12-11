@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include "util/case_io.h"
+#include <fstream>
 #include <filesystem>
 
 static void print_diffs(const std::vector<int32_t>& a, const std::vector<int32_t>& b) {
@@ -146,6 +147,55 @@ bool AIC::start(const std::string &case_toml_path) {
       }
       if (!match) {
         std::cerr << "AIC::start: result does not match golden for case " << case_toml_path << std::endl;
+        // Collect differing indices
+        std::vector<size_t> diffs_idx;
+        for (size_t ii = 0; ii < C.size(); ++ii) {
+          if (C[ii] != Cgold[ii]) diffs_idx.push_back(ii);
+        }
+        size_t show = std::min<size_t>(diffs_idx.size(), 10);
+        for (size_t d = 0; d < show; ++d) {
+          size_t idx = diffs_idx[d];
+          size_t row = cfg.M > 0 ? idx / cfg.N : 0;
+          size_t col = cfg.N > 0 ? idx % cfg.N : 0;
+          std::cerr << "diff[" << d << "] idx=" << idx << " (r=" << row << ",c=" << col << ") expected=" << Cgold[idx] << " got=" << C[idx] << "\n";
+          // print A row
+          std::cerr << "  A[row] = [";
+          for (int k = 0; k < cfg.K; ++k) {
+            if (k) std::cerr << ",";
+            std::cerr << A[row * cfg.K + k];
+          }
+          std::cerr << "]\n";
+          // print B column
+          std::cerr << "  B[col] = [";
+          for (int k = 0; k < cfg.K; ++k) {
+            if (k) std::cerr << ",";
+            std::cerr << B[k * cfg.N + col];
+          }
+          std::cerr << "]\n";
+        }
+
+        // Write a compact diff file next to the C_out (or case file if available)
+        std::string diff_path;
+        if (!cfg.case_path.empty()) diff_path = cfg.case_path + std::string(".diff");
+        else diff_path = cfg.c_out_path + std::string(".diff");
+        std::ofstream df(diff_path);
+        if (df) {
+          df << "case=" << case_toml_path << "\n";
+          df << "total_diffs=" << diffs_idx.size() << "\n";
+          for (size_t idx : diffs_idx) {
+            size_t row = cfg.M > 0 ? idx / cfg.N : 0;
+            size_t col = cfg.N > 0 ? idx % cfg.N : 0;
+            df << idx << "," << row << "," << col << ",got=" << C[idx] << ",exp=" << Cgold[idx] << "\n";
+            df << "A_row:";
+            for (int k = 0; k < cfg.K; ++k) { if (k) df << ","; df << A[row * cfg.K + k]; }
+            df << "\nB_col:";
+            for (int k = 0; k < cfg.K; ++k) { if (k) df << ","; df << B[k * cfg.N + col]; }
+            df << "\n---\n";
+          }
+          df.close();
+          std::cerr << "AIC::start: wrote diff file: " << diff_path << std::endl;
+        }
+
         print_diffs(C, Cgold);
         return false;
       }
