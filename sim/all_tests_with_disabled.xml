@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="4" failures="0" disabled="2" errors="0" time="9.861" timestamp="2025-12-11T11:29:57.723" name="AllTests">
+  <testsuite name="Integration" tests="4" failures="0" disabled="2" skipped="0" errors="0" time="9.861" timestamp="2025-12-11T11:29:57.723">
+    <testcase name="SmallMatrix" file="/home/steven/x_sim/sim/tests/test_integration.cpp" line="27" status="run" result="completed" time="0.006" timestamp="2025-12-11T11:29:57.723" classname="Integration" />
+    <testcase name="QuickLarge" file="/home/steven/x_sim/sim/tests/test_integration.cpp" line="62" status="run" result="completed" time="0.023" timestamp="2025-12-11T11:29:57.730" classname="Integration" />
+    <testcase name="DISABLED_DataflowModes" file="/home/steven/x_sim/sim/tests/test_integration.cpp" line="97" status="run" result="completed" time="0.147" timestamp="2025-12-11T11:29:57.754" classname="Integration" />
+    <testcase name="DISABLED_Scaling" file="/home/steven/x_sim/sim/tests/test_integration.cpp" line="119" status="run" result="completed" time="9.683" timestamp="2025-12-11T11:29:57.901" classname="Integration" />
+  </testsuite>
+</testsuites>
