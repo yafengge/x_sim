@@ -13,11 +13,7 @@
 #include "util/verify.h"
 #include <filesystem>
 
-// 在测试中统一使用相对路径查找配置文件（不使用绝对路径）
-static std::string find_config_rel() {
-    // 仅使用相对路径指向项目内的配置文件（指向仓库中的 `config/model.toml`）
-    return std::string("config/model.toml");
-}
+// Tests use the repository-local config file path directly: `config/model.toml`.
 // 集成测试：SmallMatrix
 //
 // 目的：使用一个确定性的 4x4 矩阵对验证阵列的基本正确性。
@@ -26,7 +22,7 @@ static std::string find_config_rel() {
 // 2. 构建 `AIC` 并获取 `Cube`；
 // 3. 使用已知的 A、B 数据执行 `run`，并用软件参考实现 `verify_result` 校验结果。
 TEST(Integration, SmallMatrix) {
-    std::string cfg = find_config_rel();
+    std::string cfg = std::string("model_cfg.toml");
     // SmallMatrix uses in-memory deterministic matrices (no file IO).
     std::vector<int16_t> A = {1,2,3,4,
                               5,6,7,8,
@@ -47,7 +43,8 @@ TEST(Integration, SmallMatrix) {
     memory->load_data(A, 0);
     memory->load_data(B, static_cast<uint32_t>(A.size()));
 
-    EXPECT_TRUE(aic->start(A,4,4,B,4,4,C));
+    auto ret = aic->start(A,4,4,B,4,4,C);
+    EXPECT_TRUE(ret);
     EXPECT_TRUE(util::verify_result(A,4,4,B,4,4,C));
 }
 
@@ -61,7 +58,7 @@ TEST(Integration, SmallMatrix) {
 // 3. 生成随机矩阵 A、B，并调用 `cube->run` 执行仿真。
 // 4. 从得到的结果中抽取一个 4x4 子块，用软件实现的乘法进行对比验证。
 TEST(Integration, QuickLarge) {
-    std::string cfg = find_config_rel();
+    std::string cfg = std::string("model_cfg.toml");
 
     auto clk = std::make_shared<Clock>();
     auto memory = std::make_shared<Mem>(clk, cfg);
@@ -77,7 +74,8 @@ TEST(Integration, QuickLarge) {
     memory->load_data(A, 0);
     memory->load_data(B, static_cast<uint32_t>(A.size()));
 
-    EXPECT_TRUE(aic->start(A,M,K,B,K,N,C));
+    auto ret = aic->start(A,M,K,B,K,N,C);
+    EXPECT_TRUE(ret);
     // Verify a small block to limit cost
     std::vector<int16_t> A_block(4*K);
     std::vector<int16_t> B_block(K*4);
@@ -97,7 +95,7 @@ TEST(Integration, QuickLarge) {
 // 说明：该测试较为耗时，会对同一输入在不同 dataflow 配置下运行完整仿真。
 // 默认以 DISABLED_ 前缀禁用；需要时通过 `--gtest_filter` 或取消 DISABLED_ 前缀启用。
 TEST(Integration, DataflowModes) {
-    std::string cfg = find_config_rel();
+    std::string cfg = std::string("model_cfg.toml");
     int M = 64, K = 64, N = 64;
     auto A = util::generate_random_matrix(M,K);
     auto B = util::generate_random_matrix(K,N);
@@ -111,7 +109,8 @@ TEST(Integration, DataflowModes) {
     memory_w->load_data(A, 0);
     memory_w->load_data(B, static_cast<uint32_t>(A.size()));
 
-    EXPECT_TRUE(aic_w->start(A, M, K, B, K, N, Cw));
+    auto ret = aic_w->start(A, M, K, B, K, N, Cw);
+    EXPECT_TRUE(ret);
     EXPECT_TRUE(util::verify_result(A, M, K, B, K, N, Cw));
 }
 
@@ -121,7 +120,7 @@ TEST(Integration, DataflowModes) {
 // 说明：此测试针对更大的输入（例如 256x256）进行多次仿真，运行时间较长，
 // 因此默认被禁用（以 `DISABLED_` 前缀）。
 TEST(Integration, Scaling) {
-    std::string cfg = find_config_rel();
+    std::string cfg = std::string("model_cfg.toml");
     int M = 256, K = 256, N = 256;
     auto A = util::generate_random_matrix(M,K);
     auto B = util::generate_random_matrix(K,N);
@@ -138,7 +137,8 @@ TEST(Integration, Scaling) {
     memory->load_data(A, 0);
     memory->load_data(B, static_cast<uint32_t>(A.size()));
 
-    EXPECT_TRUE(aic->start(A, M, K, B, K, N, C));
+    auto ret = aic->start(A, M, K, B, K, N, C);
+    EXPECT_TRUE(ret);
     EXPECT_TRUE(util::verify_result(A, M, K, B, K, N, C));
 }
 
