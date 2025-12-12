@@ -16,10 +16,12 @@
 #include <cstdlib>
 
 // 文件：tests/test_integration.cpp
-// Ensure tests use the repo-wide default config path
-namespace {
-    struct _ConfigTestInit { _ConfigTestInit() { config::set_default_path("model_cfg.toml"); } } _config_test_init;
-}
+// Ensure tests use the repo-wide default config path via a test fixture
+class Integration : public ::testing::Test {
+protected:
+    Integration() { config::set_default_path("model_cfg.toml"); }
+    ~Integration() override = default;
+};
 // 说明：集成测试集合（使用 GoogleTest）。
 // 测试采用 case-driven 流程：每个 case 由一个 TOML 描述
 // 输入二进制文件路径与 meta 信息。测试通过调用 `AIC::build(case_toml)`
@@ -28,7 +30,7 @@ namespace {
 // 集成测试：SmallMatrix
 // 目的：使用一个确定性的 4x4 矩阵对验证阵列的基本正确性。
 // 运行说明：使用 `ctest` 或直接运行测试二进制来执行该用例。
-TEST(Integration, SmallMatrix) {
+TEST_F(Integration, SmallMatrix) {
     // Determine base directory for case artifacts. Honor CASE_OUTPUT_DIR env var
     // (useful for CI); otherwise write into the source tree under tests/cases.
     auto case_dir = std::getenv("CASE_OUTPUT_DIR") ? std::string(std::getenv("CASE_OUTPUT_DIR")) : (std::filesystem::current_path() / "tests" / "cases").string();
@@ -72,7 +74,7 @@ TEST(Integration, SmallMatrix) {
 // 3. 生成随机矩阵 A、B，并调用 `cube->run` 执行仿真。
 // 4. 从得到的结果中抽取一个 4x4 子块，用软件实现的乘法进行对比验证。
 // 运行说明：使用 `ctest` 或直接运行测试二进制来执行该用例。
-TEST(Integration, QuickLarge) {
+TEST_F(Integration, QuickLarge) {
     auto case_dir = std::getenv("CASE_OUTPUT_DIR") ? std::string(std::getenv("CASE_OUTPUT_DIR")) : (std::filesystem::current_path() / "tests" / "cases").string();
         // Use case-driven flow: generate case TOML and binaries if missing,
         // then call `aic->build(case_toml)` followed by `aic->start()`.
@@ -108,7 +110,7 @@ TEST(Integration, QuickLarge) {
 // 说明：该测试较为耗时，会对同一输入在不同 dataflow 配置下运行完整仿真。
 // 默认以 DISABLED_ 前缀禁用；需要时通过 `--gtest_filter` 或取消 DISABLED_ 前缀启用。
 // 运行说明：使用 `ctest` 或直接运行测试二进制来执行该用例。
-TEST(Integration, DataflowModes) {
+TEST_F(Integration, DataflowModes) {
     auto case_dir = std::getenv("CASE_OUTPUT_DIR") ? std::string(std::getenv("CASE_OUTPUT_DIR")) : (std::filesystem::current_path() / "tests" / "cases").string();
     // Use case TOML to run this (still disabled by default)
     std::string case_toml = case_dir + std::string("/case_DataflowModes.toml");
@@ -135,7 +137,7 @@ TEST(Integration, DataflowModes) {
 // 说明：此测试针对更大的输入（例如 256x256）进行多次仿真，运行时间较长，
 // 因此默认被禁用（以 `DISABLED_` 前缀）。
 // 运行说明：使用 `ctest` 或直接运行测试二进制来执行该用例。
-TEST(Integration, Scaling) {
+TEST_F(Integration, Scaling) {
     auto case_dir = std::getenv("CASE_OUTPUT_DIR") ? std::string(std::getenv("CASE_OUTPUT_DIR")) : (std::filesystem::current_path() / "tests" / "cases").string();
     std::string case_toml = case_dir + std::string("/case_Scaling.toml");
     util::CaseConfig case_cfg;
