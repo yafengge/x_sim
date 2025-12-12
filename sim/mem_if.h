@@ -48,7 +48,7 @@ public:
     // `config_path` is empty the constructor will probe common locations
     // (`model_cfg.toml`, `config/model.toml`). The `clock` parameter is
     // optional and currently unused by the memory model itself.
-    Mem(p_clock_t clock = nullptr, const std::string &config_path = "");
+    Mem(p_clock_t clock = nullptr);
 
     // Configuration is provided via per-key getters.
 
@@ -72,8 +72,8 @@ public:
     bool dump_acc(uint32_t addr, size_t len, std::vector<AccType>& out) const;
 
 private:
-    // Load configuration values from `path` into member variables.
-    void config(const std::string &path);
+    // Load configuration values (reads the runtime default config path).
+    void config();
 };
 
 #endif // MEMORY_INTERFACE_H

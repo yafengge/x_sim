@@ -8,23 +8,19 @@
 // 实现 `Mem` 类的异步读/写请求队列、按周期推进的完成逻辑以及数据加载方法。
 // 该实现模拟带宽与延迟、突发读写并为上层提供完成队列回调风格的接口。
 
-Mem::Mem(p_clock_t clock, const std::string &config_path)
+Mem::Mem(p_clock_t clock)
         : latency_(10),
           max_outstanding_(0),
           issue_bw_read_(4), issue_bw_write_(4),
           complete_bw_read_(4), complete_bw_write_(4),
           current_cycle_(0), issued_read_this_cycle_(0), issued_write_this_cycle_(0) {
     // Centralize configuration reads
-    config(config_path);
+    config();
 }
 
-void Mem::config(const std::string &config_path) {
-    // Determine config file to read. If the caller provided a path use it,
-    // otherwise try common locations.
-    std::string path = config_path;
-    if (path.empty()) {
-        path = "model_cfg.toml";
-    }
+void Mem::config() {
+    // Configuration is read via the runtime default path (set with config::set_default_path).
+    std::string path = config::get_default_path();
 
     auto v_latency = get<int>("memory.memory_latency");
     latency_ = v_latency.value_or(10);
