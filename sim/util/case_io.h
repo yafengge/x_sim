@@ -3,6 +3,7 @@
 #include <vector>
 #include <cstdint>
 #include "types.h"
+#include <fstream>
 
 namespace util {
 
@@ -26,16 +27,38 @@ struct CaseConfig {
     std::string c_type = "int32";
 };
 
-// write/read binary helpers
-bool write_bin_int16(const std::string &path, const std::vector<int16_t> &v);
-bool write_bin_int32(const std::string &path, const std::vector<int32_t> &v);
-bool read_bin_int16(const std::string &path, std::vector<int16_t> &v);
-bool read_bin_int32(const std::string &path, std::vector<int32_t> &v);
+// Generic binary read/write helpers (header-only templates)
+template<typename T>
+inline bool write_bin(const std::string &path, const std::vector<T> &v) {
+    std::ofstream ofs(path, std::ios::binary);
+    if (!ofs) return false;
+    ofs.write(reinterpret_cast<const char*>(v.data()), static_cast<std::streamsize>(v.size() * sizeof(T)));
+    return ofs.good();
+}
+
+template<typename T>
+inline bool read_bin(const std::string &path, std::vector<T> &v) {
+    std::ifstream ifs(path, std::ios::binary | std::ios::ate);
+    if (!ifs) return false;
+    std::streamsize sz = ifs.tellg();
+    ifs.seekg(0, std::ios::beg);
+    if (sz % sizeof(T) != 0) return false;
+    size_t count = static_cast<size_t>(sz / sizeof(T));
+    v.resize(count);
+    ifs.read(reinterpret_cast<char*>(v.data()), sz);
+    return ifs.good();
+}
+
+// Backwards-compatible wrappers for existing API
+inline bool write_bin_int16(const std::string &path, const std::vector<int16_t> &v) { return write_bin<int16_t>(path, v); }
+inline bool write_bin_int32(const std::string &path, const std::vector<int32_t> &v) { return write_bin<int32_t>(path, v); }
+inline bool read_bin_int16(const std::string &path, std::vector<int16_t> &v) { return read_bin<int16_t>(path, v); }
+inline bool read_bin_int32(const std::string &path, std::vector<int32_t> &v) { return read_bin<int32_t>(path, v); }
 // Flexible read: try given path, then search upward from cwd, then PROJECT_SRC_DIR
 bool read_bin_int16_flexible(const std::string &path, std::vector<DataType> &v);
 
 // convenience wrapper for int32 write used by AIC
-bool write_bin_int32_from_acc(const std::string &path, const std::vector<AccType> &v);
+inline bool write_bin_int32_from_acc(const std::string &path, const std::vector<AccType> &v) { return write_bin<AccType>(path, v); }
 
 // write a TOML file for the case. This updates `cfg` to contain the
 // absolute paths actually written so callers can reuse them.

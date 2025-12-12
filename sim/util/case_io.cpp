@@ -8,37 +8,8 @@
 
 namespace util {
 
-static bool write_file(const std::string &path, const char *data, size_t bytes) {
-    std::ofstream ofs(path, std::ios::binary);
-    if (!ofs) return false;
-    ofs.write(data, bytes);
-    return ofs.good();
-}
-
-bool write_bin_int16(const std::string &path, const std::vector<int16_t> &v) {
-    return write_file(path, reinterpret_cast<const char*>(v.data()), v.size() * sizeof(int16_t));
-}
-
-bool write_bin_int32(const std::string &path, const std::vector<int32_t> &v) {
-    return write_file(path, reinterpret_cast<const char*>(v.data()), v.size() * sizeof(int32_t));
-}
-
-bool write_bin_int32_from_acc(const std::string &path, const std::vector<AccType> &v) {
-    // AccType is int32_t in types.h
-    return write_file(path, reinterpret_cast<const char*>(v.data()), v.size() * sizeof(AccType));
-}
-
-bool read_bin_int16(const std::string &path, std::vector<int16_t> &v) {
-    std::ifstream ifs(path, std::ios::binary | std::ios::ate);
-    if (!ifs) return false;
-    std::streamsize sz = ifs.tellg();
-    ifs.seekg(0, std::ios::beg);
-    if (sz % sizeof(int16_t) != 0) return false;
-    size_t count = static_cast<size_t>(sz) / sizeof(int16_t);
-    v.resize(count);
-    ifs.read(reinterpret_cast<char*>(v.data()), sz);
-    return ifs.good();
-}
+// Binary read/write helpers are provided as header-only templates in
+// util/case_io.h. Keep remaining file-local helpers below.
 
 bool read_bin_int16_flexible(const std::string &path, std::vector<DataType> &v) {
     // try direct read first
@@ -52,23 +23,13 @@ bool read_bin_int16_flexible(const std::string &path, std::vector<DataType> &v) 
             if (read_bin_int16(candidate, tmp)) { v.assign(tmp.begin(), tmp.end()); return true; }
             if (cwd.has_parent_path()) cwd = cwd.parent_path(); else break;
         }
-        std::string alt = std::string(PROJECT_SRC_DIR) + std::string("/") + path;
-        if (read_bin_int16(alt, tmp)) { v.assign(tmp.begin(), tmp.end()); return true; }
+            std::string alt = std::string(PROJECT_SRC_DIR) + std::string("/") + path;
+            if (read_bin<int16_t>(alt, tmp)) { v.assign(tmp.begin(), tmp.end()); return true; }
     }
     return false;
 }
 
-bool read_bin_int32(const std::string &path, std::vector<int32_t> &v) {
-    std::ifstream ifs(path, std::ios::binary | std::ios::ate);
-    if (!ifs) return false;
-    std::streamsize sz = ifs.tellg();
-    ifs.seekg(0, std::ios::beg);
-    if (sz % sizeof(int32_t) != 0) return false;
-    size_t count = static_cast<size_t>(sz) / sizeof(int32_t);
-    v.resize(count);
-    ifs.read(reinterpret_cast<char*>(v.data()), sz);
-    return ifs.good();
-}
+// read_bin<int32_t> is provided in header as template.
 
 // Very small TOML writer for our case format.
 bool write_case_toml(CaseConfig &cfg) {
