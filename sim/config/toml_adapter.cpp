@@ -2,21 +2,6 @@
 
 #include <algorithm>
 #include <cctype>
-
-#ifndef HAVE_TOMLPP
-#include "config/mini_toml.h"
-
-namespace toml_adapter {
-
-std::unordered_map<std::string, std::string> parse_toml_file(const std::string& path) {
-    // 回退到项目内置的极简解析器
-    return ::parse_toml_file(path);
-}
-
-} // namespace toml_adapter
-
-#else // HAVE_TOMLPP
-
 #include <toml++/toml.h>
 #include <sstream>
 
@@ -97,5 +82,3 @@ std::unordered_map<std::string, std::string> parse_toml_file(const std::string& 
 }
 
 } // namespace toml_adapter
-
-#endif // HAVE_TOMLPP

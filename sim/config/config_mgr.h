@@ -48,6 +48,10 @@ bool get_int_key(const std::string &path, const std::string &dotted_key, int &ou
 bool get_bool_key(const std::string &path, const std::string &dotted_key, bool &out);
 bool get_dataflow_key(const std::string &path, const std::string &dotted_key, Dataflow &out);
 
+// Parse a TOML file into a flat dotted-key -> string map using toml++.
+// Provided here so callers can obtain the raw parsed map when needed.
+std::unordered_map<std::string, std::string> parse_toml_file(const std::string& path);
+
 } // namespace config_mgr
 
 using config_mgr::get_int_key;

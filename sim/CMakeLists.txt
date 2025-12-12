@@ -21,6 +21,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(tomlplusplus)
 
+# Require tomlplusplus for the build; define HAVE_TOMLPP for consumers.
+if(NOT TARGET tomlplusplus::tomlplusplus)
+  message(FATAL_ERROR "Failed to fetch tomlplusplus; toml support is required")
+endif()
+
 # Split sources into a library (core) and the main executable so tests can link the core.
 set(SRCS_LIB
     systolic.cpp
@@ -32,7 +37,6 @@ set(SRCS_LIB
     util/utils.cpp
     util/case_io.cpp
     aic.cpp
-    config/toml_adapter.cpp
     config/config_mgr.cpp
 )
 
@@ -41,6 +45,8 @@ target_include_directories(x_sim_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 if(TARGET tomlplusplus::tomlplusplus)
   target_link_libraries(x_sim_lib PUBLIC tomlplusplus::tomlplusplus)
   target_compile_definitions(x_sim_lib PUBLIC HAVE_TOMLPP)
+else()
+  message(FATAL_ERROR "tomlplusplus target missing after FetchContent; build cannot proceed")
 endif()
 # Note: `PROJECT_SRC_DIR` compile definition removed. Path resolution now
 # uses runtime current working directory or explicit environment variables.
