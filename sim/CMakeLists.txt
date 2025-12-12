@@ -21,6 +21,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(tomlplusplus)
 
+# Fetch spdlog for logging
+FetchContent_Declare(
+  spdlog
+  GIT_REPOSITORY https://github.com/gabime/spdlog.git
+  GIT_TAG v1.11.0
+)
+FetchContent_MakeAvailable(spdlog)
+
 # Require tomlplusplus for the build; define HAVE_TOMLPP for consumers.
 if(NOT TARGET tomlplusplus::tomlplusplus)
   message(FATAL_ERROR "Failed to fetch tomlplusplus; toml support is required")
@@ -35,6 +43,7 @@ set(SRCS_LIB
     cube.cpp
     util/verify.cpp
     util/utils.cpp
+    util/log.cpp
     util/case_io.cpp
     aic.cpp
     
@@ -46,6 +55,10 @@ target_include_directories(x_sim_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 if(TARGET tomlplusplus::tomlplusplus)
   target_link_libraries(x_sim_lib PUBLIC tomlplusplus::tomlplusplus)
   target_compile_definitions(x_sim_lib PUBLIC HAVE_TOMLPP)
+  # Link spdlog for logging support
+  if(TARGET spdlog::spdlog)
+    target_link_libraries(x_sim_lib PUBLIC spdlog::spdlog)
+  endif()
 else()
   message(FATAL_ERROR "tomlplusplus target missing after FetchContent; build cannot proceed")
 endif()
