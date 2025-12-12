@@ -1,69 +1,5 @@
 #include "config/config_mgr.h"
-#include "config/config_mgr.h"
-#include <toml++/toml.h>
-#include <sstream>
-
-// We provide a parse_toml_file implementation here by reusing the toml++
-// flattening logic. This keeps parsing centralized in the `config` module.
-namespace {
-static inline std::string to_lower(std::string s) {
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-    return s;
-}
-
-using map_t = std::unordered_map<std::string, std::string>;
-
-static void flatten_toml(const toml::node& node, const std::string& prefix, map_t &out) {
-    if (auto tbl = node.as_table()) {
-        for (const auto &kv : *tbl) {
-            std::string key = prefix.empty() ? std::string(kv.first) : prefix + "." + std::string(kv.first);
-            flatten_toml(kv.second, key, out);
-        }
-        return;
-    }
-
-    if (auto arr = node.as_array()) {
-        std::string s;
-        for (size_t i = 0; i < arr->size(); ++i) {
-            if (i) s += ",";
-            const toml::node* elem = arr->get(i);
-            if (!elem) continue;
-            if (auto sv = elem->as_string()) s += sv->get();
-            else if (auto iv = elem->as_integer()) s += std::to_string(iv->get());
-            else if (auto fv = elem->as_floating_point()) s += std::to_string(fv->get());
-            else if (auto bv = elem->as_boolean()) s += (bv->get() ? "true" : "false");
-            else {
-                std::ostringstream oss;
-                oss << toml::node_view{*elem};
-                s += oss.str();
-            }
-        }
-        out[to_lower(prefix)] = s;
-        return;
-    }
-
-    if (auto sv = node.as_string()) { out[to_lower(prefix)] = sv->get(); return; }
-    if (auto iv = node.as_integer()) { out[to_lower(prefix)] = std::to_string(iv->get()); return; }
-    if (auto fv = node.as_floating_point()) { out[to_lower(prefix)] = std::to_string(fv->get()); return; }
-    if (auto bv = node.as_boolean()) { out[to_lower(prefix)] = bv->get() ? "true" : "false"; return; }
-
-    std::ostringstream oss;
-    oss << toml::node_view{node};
-    out[to_lower(prefix)] = oss.str();
-}
-} // anonymous
-
-// Exposed parse function in config_mgr namespace
-namespace config_mgr {
-std::unordered_map<std::string, std::string> parse_toml_file(const std::string& path) {
-    map_t out;
-    try {
-        auto doc = toml::parse_file(path);
-        flatten_toml(doc, "", out);
-    } catch(...) {}
-    return out;
-}
-} // namespace config_mgr
+#include "config/toml_parser.h"
 #include <filesystem>
 #include <algorithm>
 #include <cctype>
@@ -75,6 +11,10 @@ std::unordered_map<std::string, std::string> parse_toml_file(const std::string& 
 // - 提供线程安全的按键读取接口（string/int/bool/dataflow）。
 
 namespace config_mgr {
+// Forwarding wrapper kept for backward compatibility; delegates to TomlParser
+std::unordered_map<std::string, std::string> parse_toml_file(const std::string& path) {
+    return config::TomlParser::parse_file(path);
+}
 
 Manager::Manager() {}
 Manager::~Manager() {}
@@ -97,7 +37,9 @@ void Manager::ensure_loaded(const std::string &path) const {
     } catch (...) {}
     if (it == cache_.end() || it->second.mtime != mtime) {
         CacheEntry e;
-        e.map = toml_adapter::parse_toml_file(path);
+        e.map = parse_toml_file(path);
+        std::string err;
+        e.cfg = config::Config::from_map(e.map, &err);
         e.mtime = mtime;
         cache_[path] = std::move(e);
     }
@@ -135,6 +77,18 @@ bool Manager::get_bool(const std::string &path, const std::string &key, bool &ou
 
 bool Manager::get_dataflow(const std::string &path, const std::string &key, std::string &out) const {
     return get_string(path, key, out);
+}
+
+std::optional<config::Config> Manager::load_config(const std::string &path, std::string *err) const {
+    ensure_loaded(path);
+    std::shared_lock<std::shared_mutex> r(lock_);
+    auto it = cache_.find(path);
+    if (it == cache_.end()) return std::nullopt;
+    if (!it->second.cfg.has_value()) {
+        if (err) *err = "failed to parse config";
+        return std::nullopt;
+    }
+    return it->second.cfg;
 }
 
 Manager& mgr() {

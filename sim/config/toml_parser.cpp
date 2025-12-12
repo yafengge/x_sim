@@ -1,8 +1,7 @@
-#include "config/toml_adapter.h"
-
+#include "config/toml_parser.h"
+#include <toml++/toml.h>
 #include <algorithm>
 #include <cctype>
-#include <toml++/toml.h>
 #include <sstream>
 
 namespace {
@@ -10,9 +9,6 @@ static inline std::string to_lower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
     return s;
 }
-}
-
-namespace toml_adapter {
 
 using map_t = std::unordered_map<std::string, std::string>;
 
@@ -45,40 +41,27 @@ static void flatten_toml(const toml::node& node, const std::string& prefix, map_
         return;
     }
 
-    // Value or other node: extract native value where possible
-    if (auto sv = node.as_string()) {
-        out[to_lower(prefix)] = sv->get();
-        return;
-    }
-    if (auto iv = node.as_integer()) {
-        out[to_lower(prefix)] = std::to_string(iv->get());
-        return;
-    }
-    if (auto fv = node.as_floating_point()) {
-        out[to_lower(prefix)] = std::to_string(fv->get());
-        return;
-    }
-    if (auto bv = node.as_boolean()) {
-        out[to_lower(prefix)] = bv->get() ? "true" : "false";
-        return;
-    }
-    // Fallback: stringify via node_view
-    {
-        std::ostringstream oss;
-        oss << toml::node_view{node};
-        out[to_lower(prefix)] = oss.str();
-    }
+    if (auto sv = node.as_string()) { out[to_lower(prefix)] = sv->get(); return; }
+    if (auto iv = node.as_integer()) { out[to_lower(prefix)] = std::to_string(iv->get()); return; }
+    if (auto fv = node.as_floating_point()) { out[to_lower(prefix)] = std::to_string(fv->get()); return; }
+    if (auto bv = node.as_boolean()) { out[to_lower(prefix)] = bv->get() ? "true" : "false"; return; }
+
+    std::ostringstream oss;
+    oss << toml::node_view{node};
+    out[to_lower(prefix)] = oss.str();
 }
 
-std::unordered_map<std::string, std::string> parse_toml_file(const std::string& path) {
+} // anonymous
+
+namespace config {
+
+config::TomlParser::map_t TomlParser::parse_file(const std::string &path) noexcept {
     map_t out;
     try {
         auto doc = toml::parse_file(path);
         flatten_toml(doc, "", out);
-    } catch(...) {
-        // swallow parse errors and return empty map
-    }
+    } catch(...) {}
     return out;
 }
 
-} // namespace toml_adapter
+} // namespace config

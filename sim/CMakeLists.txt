@@ -38,6 +38,7 @@ set(SRCS_LIB
     util/case_io.cpp
     aic.cpp
     config/config_mgr.cpp
+    config/toml_parser.cpp
 )
 
 add_library(x_sim_lib ${SRCS_LIB})

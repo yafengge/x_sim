@@ -6,6 +6,7 @@
 #include <shared_mutex>
 #include <filesystem>
 #include "types.h"
+#include "config/config.h"
 
 // 文件：config/config_mgr.h
 // 说明：配置管理器（缓存层）。
@@ -17,6 +18,7 @@ namespace config_mgr {
 
 struct CacheEntry {
     std::unordered_map<std::string, std::string> map;
+    std::optional<config::Config> cfg;
     std::filesystem::file_time_type mtime;
 };
 
@@ -33,6 +35,9 @@ public:
     bool get_int(const std::string &path, const std::string &key, int &out) const;
     bool get_bool(const std::string &path, const std::string &key, bool &out) const;
     bool get_dataflow(const std::string &path, const std::string &key, std::string &out) const;
+
+    // New high-level loader returning strong-typed Config
+    std::optional<config::Config> load_config(const std::string &path, std::string *err = nullptr) const;
 
 private:
     static std::string normalize_key(const std::string &key);
