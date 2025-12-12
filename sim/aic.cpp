@@ -118,9 +118,19 @@ bool AIC::write_and_compare(const util::CaseConfig &cfg, const std::vector<AccTy
           std::cerr << "]\n";
         }
 
-        std::string diff_path;
-        if (!cfg.case_path.empty()) diff_path = cfg.case_path + std::string(".diff");
-        else diff_path = cfg.c_out_path + std::string(".diff");
+        // Write diffs into a generated-results directory to avoid committing them
+        std::filesystem::path outdir = std::filesystem::path(PROJECT_SRC_DIR) / "tests" / "results";
+        std::error_code ec;
+        std::filesystem::create_directories(outdir, ec);
+        std::string base_name;
+        if (!cfg.case_path.empty()) {
+          std::filesystem::path cp(cfg.case_path);
+          base_name = cp.stem().string();
+        } else {
+          std::filesystem::path cp(cfg.c_out_path);
+          base_name = cp.stem().string();
+        }
+        std::filesystem::path diff_path = outdir / (base_name + std::string(".diff"));
         std::ofstream df(diff_path);
         if (df) {
           df << "case=" << cfg.case_path << "\n";
@@ -136,7 +146,7 @@ bool AIC::write_and_compare(const util::CaseConfig &cfg, const std::vector<AccTy
             df << "\n---\n";
           }
           df.close();
-          std::cerr << "AIC::start: wrote diff file: " << diff_path << std::endl;
+          std::cerr << "AIC::start: wrote diff file: " << diff_path.string() << std::endl;
         }
 
         print_diffs(C, Cgold);

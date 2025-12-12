@@ -19,3 +19,4 @@ tests/cases/case_*.toml
 
 tests/cases/*.toml.diff
 docs/module_dataflow.xls
+tests/results/*.diff
