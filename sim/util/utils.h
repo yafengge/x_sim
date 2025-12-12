@@ -32,4 +32,12 @@ bool verify_result(const std::vector<DataType>& A, int A_rows, int A_cols,
 				   const std::vector<DataType>& B, int B_rows, int B_cols,
 				   const std::vector<AccType>& C);
 
+// Compute diffs between two int32 vectors; returns indices that differ.
+std::vector<size_t> compute_diffs(const std::vector<int32_t>& got, const std::vector<int32_t>& expected);
+
+// Emit human-readable report and write diff file for the provided diff indices.
+void emit_report(const CaseConfig &cfg, const std::vector<size_t> &diffs_idx,
+				 const std::vector<int32_t> &got, const std::vector<int32_t> &expected,
+				 const std::vector<DataType> &A, const std::vector<DataType> &B);
+
 } // namespace util

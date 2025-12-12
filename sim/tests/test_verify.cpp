@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
-#include "util/verify.h"
+#include "util/utils.h"
+#include "util/case_io.h"
+#include <filesystem>
 
 // 简单单元测试以确保 verify_result 的正确性和边界行为
 TEST(VerifyUtil, Small2x2Identity) {
@@ -26,4 +28,23 @@ TEST(VerifyUtil, ZeroSized) {
     std::vector<int16_t> B;
     std::vector<int32_t> C;
     EXPECT_FALSE(util::verify_result(A, 0, 0, B, 0, 0, C));
+}
+
+TEST(BinIO, RoundTripInt16) {
+    auto tmp = std::filesystem::temp_directory_path() / "x_sim_test_binio_int16.bin";
+    std::vector<int16_t> in = {1,2,3,4,5};
+    EXPECT_TRUE(util::write_bin_int16(tmp.string(), in));
+    std::vector<int16_t> out;
+    EXPECT_TRUE(util::read_bin_int16(tmp.string(), out));
+    EXPECT_EQ(in.size(), out.size());
+    for (size_t i=0;i<in.size();++i) EXPECT_EQ(in[i], out[i]);
+}
+
+TEST(VerifyUtil, ComputeDiffs) {
+    std::vector<int32_t> a = {1,2,3,4};
+    std::vector<int32_t> b = {1,9,3,8};
+    auto diffs = util::compute_diffs(a,b);
+    EXPECT_EQ(diffs.size(), 2u);
+    EXPECT_EQ(diffs[0], 1u);
+    EXPECT_EQ(diffs[1], 3u);
 }
