@@ -58,6 +58,7 @@ public:
     
     // PE状态查询
     bool is_active() const { return active; }
+    
     bool has_weight() const { return weight_valid; }
     
     // 打印状态

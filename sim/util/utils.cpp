@@ -1,5 +1,3 @@
-// 文件：util/utils.cpp
-// 说明：实现路径查找/解析等非模板工具函数。模板函数（如二进制 IO）保留在头文件中。
 #include "utils.h"
 #include <random>
 #include <sstream>
@@ -7,8 +5,6 @@
 #include <cmath>
 
 namespace util {
-
-// 注意：随机矩阵生成等测试辅助函数已移动到 util/verify，避免把测试工具混入这里。
 
 // 在当前工作目录及其向上父目录中查找文件，返回第一个存在的绝对路径。
 std::optional<std::filesystem::path> find_existing_path(const std::string &path, int max_up) {

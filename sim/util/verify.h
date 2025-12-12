@@ -1,8 +1,3 @@
-// 文件：util/verify.h
-// 说明：验证（verification）相关工具与模板函数。主要接口：
-// - `compute_diffs` / `print_diffs`：差异计算与打印辅助
-// - `matmul` / `compute_reference`：软件参考矩阵乘法，用于比对
-// - `write_and_compare` / `verify_result`：将结果写出并与 golden 比对，或直接进行软件验证
 #pragma once
 #include <vector>
 #include <string>
@@ -105,7 +100,7 @@ inline std::vector<AccType> compute_reference(const std::vector<DataType>& A, in
     return matmul<AccType, DataType>(A, M, K, B, N);
 }
 
-// 测试辅助：生成随机 int16 矩阵（行主序）。定义在 verify.cpp 中实现。
+// 测试辅助：生成随机 int16 矩阵（行主序）
 std::vector<int16_t> generate_random_matrix(int rows, int cols, int min_val = -128, int max_val = 127);
 
 } // namespace util

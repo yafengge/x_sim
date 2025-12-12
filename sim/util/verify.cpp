@@ -7,9 +7,6 @@
 #include <algorithm>
 #include <cmath>
 
-// 文件：util/verify.cpp
-// 说明：实现 verify 相关的非模板函数（如随机矩阵生成、写入并比对、软件验证逻辑等）。
-
 namespace util {
 
 // 生成一个 rows x cols 的随机 int16 矩阵（行主序），用于测试辅助。

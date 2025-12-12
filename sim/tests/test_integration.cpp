@@ -20,23 +20,10 @@
 // 测试采用 case-driven 流程：每个 case 由一个 TOML 描述
 // 输入二进制文件路径与 meta 信息。测试通过调用 `AIC::build(case_toml)`
 // 配置运行环境，再调用 `AIC::start()` 执行仿真并进行结果验证（与 golden 比对）。
-
-// Tests are case-driven: each case TOML describes input binaries and
-// references the platform `model_cfg.toml` via a `[model_cfg]` table.
-// Tests call `aic->build(case_toml)` to configure the Cube (the build step
-// reads `model_cfg` from the case TOML) and then `aic->start()` to run the
-// simulation and verify results against the golden file.
 //
 // 集成测试：SmallMatrix
 // 目的：使用一个确定性的 4x4 矩阵对验证阵列的基本正确性。
-// How to run this case:
-// - Build tests (from repository root):
-//     mkdir -p build && cd build && cmake .. && cmake --build . --target x_sim_tests
-// - Run only this case with ctest:
-//     ctest --test-dir build -R Integration.SmallMatrix --output-on-failure
-// - Or run test binary directly:
-//     ./build/x_sim_tests --gtest_filter=Integration.SmallMatrix
-// - Optional: set `CASE_OUTPUT_DIR=/path` to redirect generated outputs
+// 运行说明：使用 `ctest` 或直接运行测试二进制来执行该用例。
 TEST(Integration, SmallMatrix) {
     // Determine base directory for case artifacts. Honor CASE_OUTPUT_DIR env var
     // (useful for CI); otherwise write into the source tree under tests/cases.
@@ -67,13 +54,8 @@ TEST(Integration, SmallMatrix) {
 
     std::vector<int32_t> C;
 
-    // A/B are preloaded into the memory model by `AIC::start()` (the
-    // no-argument form). Tests do not need to call `memory->load_data`.
-
     auto ret = aic->start();
     EXPECT_TRUE(ret);
-    // AIC::start performs verification against the golden file; no further
-    // read/verify is required by the test. Keep C vector unused here.
 }
 
 // 集成测试：QuickLarge
@@ -85,14 +67,7 @@ TEST(Integration, SmallMatrix) {
 // 2. 使用该配置创建 `AIC`（顶层封装），并从中获取 `Cube` 实例。
 // 3. 生成随机矩阵 A、B，并调用 `cube->run` 执行仿真。
 // 4. 从得到的结果中抽取一个 4x4 子块，用软件实现的乘法进行对比验证。
-// How to run this case:
-// - Build tests (from repository root):
-//     mkdir -p build && cd build && cmake .. && cmake --build . --target x_sim_tests
-// - Run only this case with ctest:
-//     ctest --test-dir build -R Integration.QuickLarge --output-on-failure
-// - Or run test binary directly:
-//     ./build/x_sim_tests --gtest_filter=Integration.QuickLarge
-// - Optional: set `CASE_OUTPUT_DIR=/path` to redirect generated outputs
+// 运行说明：使用 `ctest` 或直接运行测试二进制来执行该用例。
 TEST(Integration, QuickLarge) {
     auto case_dir = std::getenv("CASE_OUTPUT_DIR") ? std::string(std::getenv("CASE_OUTPUT_DIR")) : (std::filesystem::current_path() / "tests" / "cases").string();
         // Use case-driven flow: generate case TOML and binaries if missing,
@@ -128,14 +103,7 @@ TEST(Integration, QuickLarge) {
 // 目的：验证不同数据流策略（WEIGHT/OUTPUT/INPUT stationary）对阵列行为的影响。
 // 说明：该测试较为耗时，会对同一输入在不同 dataflow 配置下运行完整仿真。
 // 默认以 DISABLED_ 前缀禁用；需要时通过 `--gtest_filter` 或取消 DISABLED_ 前缀启用。
-// How to run this case:
-// - Build tests (from repository root):
-//     mkdir -p build && cd build && cmake .. && cmake --build . --target x_sim_tests
-// - Run only this (disabled) case with ctest:
-//     ctest --test-dir build -R Integration.DataflowModes --output-on-failure
-// - Or run test binary directly (enable with filter):
-//     ./build/x_sim_tests --gtest_filter=Integration.DataflowModes
-// - Optional: set `CASE_OUTPUT_DIR=/path` to redirect generated outputs
+// 运行说明：使用 `ctest` 或直接运行测试二进制来执行该用例。
 TEST(Integration, DataflowModes) {
     auto case_dir = std::getenv("CASE_OUTPUT_DIR") ? std::string(std::getenv("CASE_OUTPUT_DIR")) : (std::filesystem::current_path() / "tests" / "cases").string();
     // Use case TOML to run this (still disabled by default)
@@ -158,19 +126,11 @@ TEST(Integration, DataflowModes) {
     EXPECT_TRUE(ret);
 }
 
-
 //
 // 目的：测试不同阵列尺寸（4、8、16、32 等）下的矩阵乘法可扩展性与正确性。
 // 说明：此测试针对更大的输入（例如 256x256）进行多次仿真，运行时间较长，
 // 因此默认被禁用（以 `DISABLED_` 前缀）。
-// How to run this case:
-// - Build tests (from repository root):
-//     mkdir -p build && cd build && cmake .. && cmake --build . --target x_sim_tests
-// - Run only this case with ctest:
-//     ctest --test-dir build -R Integration.Scaling --output-on-failure
-// - Or run test binary directly:
-//     ./build/x_sim_tests --gtest_filter=Integration.Scaling
-// - Optional: set `CASE_OUTPUT_DIR=/path` to redirect generated outputs
+// 运行说明：使用 `ctest` 或直接运行测试二进制来执行该用例。
 TEST(Integration, Scaling) {
     auto case_dir = std::getenv("CASE_OUTPUT_DIR") ? std::string(std::getenv("CASE_OUTPUT_DIR")) : (std::filesystem::current_path() / "tests" / "cases").string();
     std::string case_toml = case_dir + std::string("/case_Scaling.toml");

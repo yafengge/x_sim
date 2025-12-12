@@ -8,7 +8,7 @@
 // 实现 `Mem` 类的异步读/写请求队列、按周期推进的完成逻辑以及数据加载方法。
 // 该实现模拟带宽与延迟、突发读写并为上层提供完成队列回调风格的接口。
 
-Mem::Mem(p_clock_t /*clock*/, const std::string &config_path)
+Mem::Mem(p_clock_t clock, const std::string &config_path)
         : latency_(10),
           max_outstanding_(0),
           issue_bw_read_(4), issue_bw_write_(4),

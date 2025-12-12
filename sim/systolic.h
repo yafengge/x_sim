@@ -1,7 +1,3 @@
-// 文件：systolic.h
-// 说明：SystolicArray 顶层声明。
-// 声明脉动阵列（SystolicArray）及其辅助类型（如 DoubleBufferedMemory、FIFO）。
-// 负责周期级矩阵乘法的接口与控制函数声明，具体实现见 systolic.cpp。
 #ifndef SYSTOLIC_ARRAY_H
 #define SYSTOLIC_ARRAY_H
 
@@ -43,7 +39,7 @@ private:
 
     State current_state;
     Cycle current_cycle;
-    // global clock for the array; components may register listeners
+    // Global clock for the array.
     p_clock_t clock;
     // listener ids registered with clock (if any)
     std::size_t mem_listener_id;
@@ -139,8 +135,6 @@ public:
     
     // 重置阵列
     void reset();
-    
-    // (旧接口已移除) 矩阵乘法请使用 `run` 或者通过 `Cube::run` 入口
 
     // Run the array using data already present in `memory` at the provided
     // addresses. The array will issue read requests to `memory` and commit
@@ -163,14 +157,7 @@ public:
     
     // 调试功能
     void print_array_state() const;
-    void enable_tracing(const std::string& filename);
-
-    // 访问内存模型（供封装层获取共享指针）
-    p_mem_t get_memory() { return memory; }
-    p_mem_t get_memory() const { return memory; }
-    
-    // 验证功能已迁移到 util/verify.{h,cpp} 中作为独立工具函数。
-    // 若仍需通过类访问，请使用 SystolicArray::verify_result (已向后兼容直到下一次重大版本移除)。
+    void enable_tracing(const std::string& filename); 
 };
 
 // 内存模型

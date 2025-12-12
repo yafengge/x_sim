@@ -50,7 +50,7 @@ public:
     // optional and currently unused by the memory model itself.
     Mem(p_clock_t clock = nullptr, const std::string &config_path = "");
 
-    // Configuration is read via per-key getters; struct-based API removed.
+    // Configuration is provided via per-key getters.
 
     // 向 memory 发起读请求，完成后数据会被 push 到 completion_queue（遵守 max_queue_depth）
     // completion_queue is non-owning; caller must ensure it lives until request completes

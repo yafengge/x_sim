@@ -1,6 +1,7 @@
 #include "util/case_io.h"
 #include "util/utils.h"
 #include "config/mini_toml.h"
+#include "mem_if.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -10,6 +11,7 @@
 // 文件：util/case_io.cpp
 // 说明：实现 case TOML 与二进制文件的创建/读取逻辑。
 // 备注：尽量保持写入的路径为绝对路径，避免运行时依赖于工作目录。
+namespace util {
 
 bool write_config_file(const std::string& path, int array_rows, int array_cols) {
     std::ofstream fout(path);
@@ -19,8 +21,6 @@ bool write_config_file(const std::string& path, int array_rows, int array_cols) 
     fout << "array_cols = " << array_cols << "\n";
     return fout.good();
 }
-
-namespace util {
 
 // 将 CaseConfig 写为 TOML，写入时把二进制路径转换为绝对路径并写入文件。
 bool write_case_toml(CaseConfig &cfg) {
@@ -176,6 +176,19 @@ bool create_cube_case_config(const std::string &case_toml, CaseConfig &cfg,
     }
     if (!util::write_bin<int32_t>(cfg.c_golden_path, Cgold)) return false;
     return write_case_toml(cfg);
+}
+
+// Read A/B binaries according to an already-populated CaseConfig
+bool read_bins_from_cfg(const CaseConfig &cfg, std::vector<DataType> &A, std::vector<DataType> &B) {
+    if (!read_bin<DataType>(cfg.a_path, A)) {
+        std::cerr << "read_bins_from_cfg: failed to read A from " << cfg.a_path << std::endl;
+        return false;
+    }
+    if (!read_bin<DataType>(cfg.b_path, B)) {
+        std::cerr << "read_bins_from_cfg: failed to read B from " << cfg.b_path << std::endl;
+        return false;
+    }
+    return true;
 }
 
 } // namespace util

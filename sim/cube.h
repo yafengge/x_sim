@@ -16,24 +16,11 @@ public:
                   p_clock_t external_clock,
                   p_mem_t external_mem = nullptr);
 
-    // (Configuration is read on-demand via per-key getters; no in-memory struct)
-
-    // (Internal SystolicArray accessors removed — not part of public API.)
-
-    // Provide top-level convenience methods that forward to the internal SystolicArray
-
     // Run using data already loaded into memory. `a_addr`, `b_addr`, and
     // `c_addr` are the base addresses where A, B and C (accumulators) reside.
     bool run(int M, int N, int K,
                          uint32_t a_addr, uint32_t b_addr, uint32_t c_addr);
 
-    // Note: result verification has been moved to a standalone utility function
-    // `verify_result(...)` available in `util/utils.h`.
-
-    // (Clock and memory access are intentionally not exposed here;
-    // callers should hold the handles returned from SimTop::build_*)
-
-    // 访问配置
     // Returns config path (file used for configuration)
     const std::string& config_path() const { return config_path_; }
 
@@ -43,8 +30,6 @@ private:
     p_mem_t mem_;
     p_systolic_array_t systolic_;
 
-    // Load or normalize configuration path and perform any Cube-level
-    // configuration/validation. Called from constructor.
     void config(const std::string &path);
 };
 
