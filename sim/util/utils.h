@@ -19,9 +19,6 @@ bool read_matrix_bin(const std::string& path, std::vector<int16_t>& out);
 // util/utils.h can refer to `util::CaseConfig` without a separate include.
 
 // Verification utilities (migrated from util/verify.h)
-// Resolve a possibly-relative path using PROJECT_SRC_DIR when needed
-std::string resolve_path(const std::string &path);
-
 // Print simple diffs between two int32 vectors (used by write_and_compare)
 void print_diffs(const std::vector<int32_t>& a, const std::vector<int32_t>& b);
 

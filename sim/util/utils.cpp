@@ -48,11 +48,8 @@ bool read_matrix_bin(const std::string& path, std::vector<int16_t>& out) {
 // --- migrated from util/verify.cpp ---
 namespace util {
 
-std::string resolve_path(const std::string &path) {
-    std::filesystem::path p(path);
-    if (p.is_absolute()) return path;
-    return std::string(PROJECT_SRC_DIR) + std::string("/") + path;
-}
+// Use centralized path helpers
+#include "util/path.h"
 
 void print_diffs(const std::vector<int32_t>& a, const std::vector<int32_t>& b) {
     size_t n = std::min(a.size(), b.size());

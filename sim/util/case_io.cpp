@@ -1,4 +1,5 @@
 #include "util/case_io.h"
+#include "util/path.h"
 #include "config/mini_toml.h"
 #include <fstream>
 #include <iostream>
@@ -12,20 +13,14 @@ namespace util {
 // util/case_io.h. Keep remaining file-local helpers below.
 
 bool read_bin_int16_flexible(const std::string &path, std::vector<DataType> &v) {
-    // try direct read first
     std::vector<int16_t> tmp;
-    if (read_bin_int16(path, tmp)) { v.assign(tmp.begin(), tmp.end()); return true; }
-    std::filesystem::path p(path);
-    if (p.is_relative()) {
-        std::filesystem::path cwd = std::filesystem::current_path();
-        for (int depth = 0; depth < 5; ++depth) {
-            std::string candidate = (cwd / path).string();
-            if (read_bin_int16(candidate, tmp)) { v.assign(tmp.begin(), tmp.end()); return true; }
-            if (cwd.has_parent_path()) cwd = cwd.parent_path(); else break;
-        }
-            std::string alt = std::string(PROJECT_SRC_DIR) + std::string("/") + path;
-            if (read_bin<int16_t>(alt, tmp)) { v.assign(tmp.begin(), tmp.end()); return true; }
+    auto found = util::find_existing_path(path, 5);
+    if (found) {
+        if (read_bin<int16_t>(found->string(), tmp)) { v.assign(tmp.begin(), tmp.end()); return true; }
+        return false;
     }
+    // fallback: try direct read of the original path
+    if (read_bin<int16_t>(path, tmp)) { v.assign(tmp.begin(), tmp.end()); return true; }
     return false;
 }
 
