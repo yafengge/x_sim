@@ -3,6 +3,7 @@
 #// 实现处理单元的本地乘加逻辑、流水线寄存器与两阶段提交（tick/commit）机制，
 #// 主要函数包括 `reset`、`load_weight`、`prepare_inputs`、`tick` 和 `commit`。
 #include "pe.h"
+#include "util/log.h"
 #include <iostream>
 PE::PE(int x, int y) 
     : id_x(x), id_y(y), weight(0), activation(0), 
@@ -75,9 +76,7 @@ void PE::compute_cycle(DataType act_in, AccType psum_in,
 
 // 调试用：打印 PE 状态
 void PE::print_state() const {
-    std::cout << "PE(" << id_x << "," << id_y << "): "
-              << "W=" << weight << " A=" << activation 
-              << " ACC=" << accumulator 
-              << " " << (weight_valid ? "W" : "-")
-              << (active ? "A" : "-") << std::endl;
+    LOG_INFO("PE({},{}): W={} A={} ACC={} {}{}",
+             id_x, id_y, weight, activation, accumulator,
+             (weight_valid ? "W" : "-"), (active ? "A" : "-"));
 }

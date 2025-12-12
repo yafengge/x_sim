@@ -1,6 +1,6 @@
 
 #include "aic.h"
-#include <iostream>
+#include "util/log.h"
 #include "util/case_io.h"
 #include "util/utils.h"
 #include <fstream>
@@ -13,7 +13,7 @@ void AIC::preload_into_mem(const util::CaseConfig &cfg, const std::vector<DataTy
     mem_->load_data(A, cfg.a_addr);
     mem_->load_data(B, cfg.b_addr);
   } else {
-    std::cerr << "AIC::preload_into_mem: mem_ is null; cannot preload A/B" << std::endl;
+    LOG_ERROR("AIC::preload_into_mem: mem_ is null; cannot preload A/B");
   }
 }
 
@@ -24,7 +24,7 @@ AIC::AIC(const p_clock_t& clk,
 
 void AIC::build(const std::string& case_toml_path, bool force) {
   if (!clk_ || !mem_) {
-    std::cerr << "AIC::build: clock or memory not provided" << std::endl;
+    LOG_ERROR("AIC::build: clock or memory not provided");
     return;
   }
 
@@ -33,7 +33,7 @@ void AIC::build(const std::string& case_toml_path, bool force) {
   // the Cube.
   util::CaseConfig cfg;
   if (!util::read_case_toml(case_toml_path, cfg)) {
-    std::cerr << "AIC::build: failed to read case toml: " << case_toml_path << std::endl;
+    LOG_ERROR("AIC::build: failed to read case toml: {}", case_toml_path);
     return;
   }
   case_cfg_ = cfg;
@@ -49,7 +49,7 @@ void AIC::build(const std::string& case_toml_path, bool force) {
 
 bool AIC::start() {
   if (case_cfg_.case_path.empty()) {
-    std::cerr << "AIC::start: no case configured; call build(case_toml) first" << std::endl;
+    LOG_ERROR("AIC::start: no case configured; call build(case_toml) first");
     return false;
   }
   std::vector<DataType> A;
@@ -62,7 +62,7 @@ bool AIC::start() {
   preload_into_mem(case_cfg_, A, B);
 
   if (!cube_) {
-    std::cerr << "AIC::start: cube not constructed; call build(case_toml) first" << std::endl;
+    LOG_ERROR("AIC::start: cube not constructed; call build(case_toml) first");
     return false;
   }
 
@@ -74,7 +74,7 @@ bool AIC::start() {
   size_t c_len = static_cast<size_t>(case_cfg_.M) * static_cast<size_t>(case_cfg_.N);
   std::vector<AccType> Cacc;
   if (!mem_->dump_acc(case_cfg_.c_addr, c_len, Cacc)) {
-    std::cerr << "AIC::start: failed to dump accumulator memory at " << case_cfg_.c_addr << std::endl;
+    LOG_ERROR("AIC::start: failed to dump accumulator memory at {}", case_cfg_.c_addr);
     return false;
   }
 

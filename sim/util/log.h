@@ -8,8 +8,10 @@ namespace util {
 // Initialize logging subsystem. `log_dir` is a directory path where
 // rotating log files will be written (file name: x_sim.log).
 // `level` is a spdlog level string like "info", "debug", "warn", "error".
+// q_size: async queue size (items). thread_count: number of background threads.
 bool log_init(const std::string &log_dir, const std::string &level = "info", bool async = true,
-              size_t rotate_size = 10 * 1024 * 1024, int rotate_count = 5);
+              size_t rotate_size = 10 * 1024 * 1024, int rotate_count = 5,
+              size_t q_size = 8192, size_t thread_count = 1);
 
 // Shutdown logging gracefully.
 void log_shutdown();

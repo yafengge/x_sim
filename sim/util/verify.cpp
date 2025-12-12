@@ -1,5 +1,6 @@
 #include "util/verify.h"
 #include "util/utils.h"
+#include "util/log.h"
 #include <random>
 #include <fstream>
 #include <iostream>
@@ -26,7 +27,7 @@ bool write_and_compare(const CaseConfig &cfg, const std::vector<AccType> &C,
     if (!cfg.c_out_path.empty()) {
         std::string c_out_resolved = util::resolve_path(cfg.c_out_path);
         if (!util::write_bin<AccType>(c_out_resolved, C)) {
-            std::cerr << "write_and_compare: failed to write C_out to " << c_out_resolved << std::endl;
+            LOG_ERROR("write_and_compare: failed to write C_out to {}", c_out_resolved);
         }
     }
 
@@ -35,17 +36,17 @@ bool write_and_compare(const CaseConfig &cfg, const std::vector<AccType> &C,
     std::string c_golden_resolved = util::resolve_path(cfg.c_golden_path);
     std::vector<int32_t> Cgold;
     if (!util::read_bin<int32_t>(c_golden_resolved, Cgold)) {
-        std::cerr << "write_and_compare: could not read golden file " << cfg.c_golden_path << std::endl;
+        LOG_ERROR("write_and_compare: could not read golden file {}", cfg.c_golden_path);
         return false;
     }
     if (Cgold.size() != C.size()) {
-        std::cerr << "write_and_compare: golden size mismatch: " << Cgold.size() << " vs " << C.size() << std::endl;
+        LOG_ERROR("write_and_compare: golden size mismatch: {} vs {}", Cgold.size(), C.size());
         return false;
     }
 
     auto diffs_idx = compute_diffs(std::vector<int32_t>(C.begin(), C.end()), Cgold);
     if (!diffs_idx.empty()) {
-        std::cerr << "write_and_compare: result does not match golden for case " << cfg.case_path << std::endl;
+        LOG_ERROR("write_and_compare: result does not match golden for case {}", cfg.case_path);
         print_diffs(std::vector<int32_t>(C.begin(), C.end()), Cgold);
         return false;
     }
@@ -73,7 +74,7 @@ bool verify_result(const std::vector<DataType>& A, int A_rows, int A_cols,
     std::vector<int32_t> ref32(ref_acc.begin(), ref_acc.end());
     auto diffs_idx = compute_diffs(C32, ref32);
     if (diffs_idx.empty()) {
-        std::cout << "Verification PASSED! Max error: 0, Avg error: 0" << std::endl;
+        LOG_INFO("Verification PASSED! Max error: 0, Avg error: 0");
         return true;
     }
 
@@ -86,8 +87,8 @@ bool verify_result(const std::vector<DataType>& A, int A_rows, int A_cols,
         total_error += error;
     }
 
-    std::cout << "Verification FAILED! " << diffs_idx.size() << " errors found."
-              << " Max error: " << max_error << ", Avg error: " << (total_error / (M * N)) << std::endl;
+    LOG_ERROR("Verification FAILED! {} errors found. Max error: {}, Avg error: {}",
+              diffs_idx.size(), max_error, (total_error / (M * N)));
     print_diffs(C32, ref32);
     return false;
 }

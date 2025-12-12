@@ -1,6 +1,7 @@
 #include "util/log.h"
 #include "util/utils.h"
 #include <spdlog/spdlog.h>
+#include <spdlog/async.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -10,7 +11,8 @@ namespace util {
 
 static std::shared_ptr<spdlog::logger> global_logger = nullptr;
 
-bool log_init(const std::string &log_dir, const std::string &level, bool async, size_t rotate_size, int rotate_count) {
+bool log_init(const std::string &log_dir, const std::string &level, bool async, size_t rotate_size, int rotate_count,
+              size_t q_size, size_t thread_count) {
     try {
         std::filesystem::create_directories(log_dir);
     } catch(...) {}
@@ -30,9 +32,16 @@ bool log_init(const std::string &log_dir, const std::string &level, bool async, 
         sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
         sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_mt>(logfile, rotate_size, rotate_count));
 
-        // Create synchronous logger with console + rotating file sinks.
-        global_logger = std::make_shared<spdlog::logger>("x_sim", sinks.begin(), sinks.end());
-        spdlog::set_default_logger(global_logger);
+        if (async) {
+            spdlog::init_thread_pool(q_size, thread_count);
+            auto tp = spdlog::thread_pool();
+            global_logger = std::make_shared<spdlog::async_logger>("x_sim", sinks.begin(), sinks.end(), tp, spdlog::async_overflow_policy::block);
+            spdlog::set_default_logger(global_logger);
+        } else {
+            global_logger = std::make_shared<spdlog::logger>("x_sim", sinks.begin(), sinks.end());
+            spdlog::set_default_logger(global_logger);
+        }
+
         global_logger->set_level(lvl);
         global_logger->flush_on(spdlog::level::err);
         return true;

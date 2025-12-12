@@ -3,6 +3,7 @@
 #include <string>
 #include <cstddef>
 #include <iostream>
+#include "util/log.h"
 #include "types.h"
 #include "util/case_io.h"
 
@@ -23,23 +24,23 @@ void print_diffs(const std::vector<T>& got, const std::vector<T>& expected,
             if (diffs_printed >= max_print) break;
             T g = (idx < got.size()) ? got[idx] : T();
             T e = (idx < expected.size()) ? expected[idx] : T();
-            std::cerr << "diff at " << idx << ": expected=" << e << " got=" << g << "\n";
+            LOG_INFO("diff at {}: expected={} got={}", idx, e, g);
             ++diffs_printed;
         }
     } else {
         for (size_t i = 0; i < n && diffs_printed < max_print; ++i) {
             if (got[i] != expected[i]) {
-                std::cerr << "diff at " << i << ": expected=" << expected[i] << " got=" << got[i] << "\n";
+                LOG_INFO("diff at {}: expected={} got={}", i, expected[i], got[i]);
                 ++diffs_printed;
             }
         }
     }
     if (got.size() != expected.size()) {
-        std::cerr << "size mismatch: got=" << got.size() << " golden=" << expected.size() << "\n";
+        LOG_WARN("size mismatch: got={} golden={}", got.size(), expected.size());
     }
     // 打印总差异数
     auto total_diffs = compute_diffs<T>(got, expected);
-    std::cerr << "total differences: " << total_diffs.size() << "\n";
+    LOG_INFO("total differences: {}", total_diffs.size());
 }
 
 // 将累加器 C 写入磁盘并与 CaseConfig 中描述的 golden 比对。

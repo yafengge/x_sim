@@ -2,6 +2,7 @@
 #include "util/utils.h"
 #include "config/config.h"
 #include "mem_if.h"
+#include "util/log.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -94,9 +95,7 @@ bool read_case_toml(const std::string &path, CaseConfig &out) {
         auto prov = config::get_provider();
         auto mc = prov->load_config(out.model_cfg_path, &err);
         if (!mc.has_value()) {
-            std::cerr << "read_case_toml: failed to load model config '" << out.model_cfg_path << "'";
-            if (!err.empty()) std::cerr << ": " << err;
-            std::cerr << std::endl;
+            LOG_WARN("read_case_toml: failed to load model config '{}' : {}", out.model_cfg_path, err);
         }
     }
 
@@ -152,11 +151,11 @@ bool create_case_toml(const std::string &case_toml, CaseConfig &cfg,
 // Read A/B binaries according to an already-populated CaseConfig
 bool read_bins_from_cfg(const CaseConfig &cfg, std::vector<DataType> &A, std::vector<DataType> &B) {
     if (!read_bin<DataType>(cfg.a_path, A)) {
-        std::cerr << "read_bins_from_cfg: failed to read A from " << cfg.a_path << std::endl;
+        LOG_ERROR("read_bins_from_cfg: failed to read A from {}", cfg.a_path);
         return false;
     }
     if (!read_bin<DataType>(cfg.b_path, B)) {
-        std::cerr << "read_bins_from_cfg: failed to read B from " << cfg.b_path << std::endl;
+        LOG_ERROR("read_bins_from_cfg: failed to read B from {}", cfg.b_path);
         return false;
     }
     return true;

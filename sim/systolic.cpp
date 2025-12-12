@@ -2,6 +2,7 @@
 #include "clock.h"
 #include "config/config.h"
 #include <iostream>
+#include "util/log.h"
 #include <fstream>
 #include <iomanip>
 #include <cassert>
@@ -169,7 +170,7 @@ void SystolicArray::commit_tile_results(int mb, int nb, int m_tile, int n_tile,
             AccType val = pes[i][j].get_accumulator();
             if (memory) memory->store_acc_direct(static_cast<uint32_t>(c_addr + idx), val);
             if (cfg_verbose && m_tile <= 4 && n_tile <= 4) {
-                std::cout << "Commit C("<< (mb+i) <<","<<(nb+j)<<") += "<< val <<"\n";
+                LOG_INFO("Commit C({},{}) += {}", (mb+i), (nb+j), val);
             }
         }
     }
@@ -183,7 +184,7 @@ bool SystolicArray::run(int M, int N, int K,
 
     // Basic checks
     if (K <= 0 || M <= 0 || N <= 0) {
-        std::cerr << "run: invalid dimensions" << std::endl;
+        LOG_ERROR("run: invalid dimensions");
         return false;
     }
 
@@ -219,33 +220,32 @@ bool SystolicArray::run(int M, int N, int K,
                                               a_addr, b_addr,
                                               localA_pool, localB_pool,
                                               completionA, completionB, queue_depth)) {
-                    std::cerr << "run: prefetch failed for tile\n";
+                    LOG_ERROR("run: prefetch failed for tile");
                     return false;
                 }
 
                 // Wait for prefetch to fill local FIFOs
                 if (!wait_for_prefetch(m_tile, n_tile, k_tile, localA_pool, localB_pool)) {
-                    std::cerr << "run: prefetch timeout for tile\n";
+                    LOG_ERROR("run: prefetch timeout for tile");
                     return false;
                 }
 
                 // Process the tile using local FIFOs and commit accumulators into memory
                 if (!process_tile(localA_pool, localB_pool, mb, nb, m_tile, n_tile, k_tile, c_addr, N)) {
-                    std::cerr << "run: processing tile failed\n";
+                    LOG_ERROR("run: processing tile failed");
                     return false;
                 }
 
                 tiles_done++;
                 if (cfg_progress_interval > 0 && (tiles_done % cfg_progress_interval) == 0) {
-                    std::cout << "Completed " << tiles_done << " / " << tiles_total << " tiles (" \
-                              << (100.0 * tiles_done / tiles_total) << "% )" << std::endl;
+                    LOG_INFO("Completed {} / {} tiles ({}%)", tiles_done, tiles_total, (100.0 * tiles_done / tiles_total));
                 }
             }
         }
     }
 
     current_state = State::DONE;
-    std::cout << "Matrix multiplication completed in " << current_cycle << " cycles" << std::endl;
+    LOG_INFO("Matrix multiplication completed in {} cycles", current_cycle);
     return true;
 }
 
@@ -423,25 +423,18 @@ void SystolicArray::reset() {
 
 
 void SystolicArray::print_stats() const {
-    std::cout << "\n=== Systolic Array Performance Statistics ===" << std::endl;
-    std::cout << "Total cycles: " << stats.total_cycles << std::endl;
-    std::cout << "Compute cycles: " << stats.compute_cycles << std::endl;
-    std::cout << "Load cycles (prefetch wait): " << stats.load_cycles << std::endl;
-    std::cout << "Drain cycles: " << stats.drain_cycles << std::endl;
-    std::cout << "Memory stall cycles: " << stats.memory_stall_cycles 
-              << " (" << std::fixed << std::setprecision(1) 
-              << (double)stats.memory_stall_cycles / stats.total_cycles * 100 
-              << "%)" << std::endl;
-    std::cout << "Memory backpressure cycles: " << stats.memory_backpressure_cycles << std::endl;
-    std::cout << "MAC operations: " << stats.mac_operations << std::endl;
-    std::cout << "Theoretical peak MACs: " 
-              << (uint64_t)cfg_array_rows * (uint64_t)cfg_array_cols * stats.compute_cycles 
-              << std::endl;
-    std::cout << "Utilization: " << std::fixed << std::setprecision(2) 
-              << get_utilization() * 100 << "%" << std::endl;
-    std::cout << "Effective TOPS: " 
-              << (double)stats.mac_operations / stats.total_cycles * 1e-9 
-              << " GMACs/cycle" << std::endl;
+    LOG_INFO("\n=== Systolic Array Performance Statistics ===");
+    LOG_INFO("Total cycles: {}", stats.total_cycles);
+    LOG_INFO("Compute cycles: {}", stats.compute_cycles);
+    LOG_INFO("Load cycles (prefetch wait): {}", stats.load_cycles);
+    LOG_INFO("Drain cycles: {}", stats.drain_cycles);
+    LOG_INFO("Memory stall cycles: {} ({:.1}% )", stats.memory_stall_cycles,
+             (double)stats.memory_stall_cycles / stats.total_cycles * 100);
+    LOG_INFO("Memory backpressure cycles: {}", stats.memory_backpressure_cycles);
+    LOG_INFO("MAC operations: {}", stats.mac_operations);
+    LOG_INFO("Theoretical peak MACs: {}", (uint64_t)cfg_array_rows * (uint64_t)cfg_array_cols * stats.compute_cycles);
+    LOG_INFO("Utilization: {:.2}%", get_utilization() * 100);
+    LOG_INFO("Effective TOPS: {} GMACs/cycle", (double)stats.mac_operations / stats.total_cycles * 1e-9);
 }
 
 double SystolicArray::get_utilization() const {
@@ -484,7 +477,7 @@ void SystolicArray::load_config_cache() {
         cfg_verbose = get<bool>("cube.verbose").value_or(false);
         cfg_dataflow_cached = get<Dataflow>("cube.dataflow").value_or(Dataflow::WEIGHT_STATIONARY);
             if (!err.empty()) {
-                std::cerr << "load_config_cache: failed to load config '" << config::get_default_path() << "': " << err << std::endl;
+                LOG_WARN("load_config_cache: failed to load config '{}' : {}", config::get_default_path(), err);
             }
     }
 }
