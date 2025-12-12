@@ -20,7 +20,6 @@ set(SRCS_LIB
     cube.cpp
     util/verify.cpp
     util/utils.cpp
-    util/path.cpp
     util/case_io.cpp
     aic.cpp
     config/mini_toml.cpp
