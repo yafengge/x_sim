@@ -34,7 +34,7 @@
 TEST(Integration, SmallMatrix) {
     // Determine base directory for case artifacts. Honor CASE_OUTPUT_DIR env var
     // (useful for CI); otherwise write into the source tree under tests/cases.
-    auto case_dir = std::getenv("CASE_OUTPUT_DIR") ? std::string(std::getenv("CASE_OUTPUT_DIR")) : std::string(PROJECT_SRC_DIR) + std::string("/tests/cases");
+    auto case_dir = std::getenv("CASE_OUTPUT_DIR") ? std::string(std::getenv("CASE_OUTPUT_DIR")) : (std::filesystem::current_path() / "tests" / "cases").string();
     std::string case_toml = case_dir + std::string("/case_SmallMatrix.toml");
     util::CaseConfig case_cfg;
     bool have_case = util::read_case_toml(case_toml, case_cfg);
@@ -88,7 +88,7 @@ TEST(Integration, SmallMatrix) {
 //     ./build/x_sim_tests --gtest_filter=Integration.QuickLarge
 // - Optional: set `CASE_OUTPUT_DIR=/path` to redirect generated outputs
 TEST(Integration, QuickLarge) {
-    auto case_dir = std::getenv("CASE_OUTPUT_DIR") ? std::string(std::getenv("CASE_OUTPUT_DIR")) : std::string(PROJECT_SRC_DIR) + std::string("/tests/cases");
+    auto case_dir = std::getenv("CASE_OUTPUT_DIR") ? std::string(std::getenv("CASE_OUTPUT_DIR")) : (std::filesystem::current_path() / "tests" / "cases").string();
         // Use case-driven flow: generate case TOML and binaries if missing,
         // then call `aic->build(case_toml)` followed by `aic->start()`.
     std::string case_toml = case_dir + std::string("/case_QuickLarge.toml");
@@ -131,7 +131,7 @@ TEST(Integration, QuickLarge) {
 //     ./build/x_sim_tests --gtest_filter=Integration.DataflowModes
 // - Optional: set `CASE_OUTPUT_DIR=/path` to redirect generated outputs
 TEST(Integration, DataflowModes) {
-    auto case_dir = std::getenv("CASE_OUTPUT_DIR") ? std::string(std::getenv("CASE_OUTPUT_DIR")) : std::string(PROJECT_SRC_DIR) + std::string("/tests/cases");
+    auto case_dir = std::getenv("CASE_OUTPUT_DIR") ? std::string(std::getenv("CASE_OUTPUT_DIR")) : (std::filesystem::current_path() / "tests" / "cases").string();
     // Use case TOML to run this (still disabled by default)
     std::string case_toml = case_dir + std::string("/case_DataflowModes.toml");
     util::CaseConfig case_cfg;
@@ -166,7 +166,7 @@ TEST(Integration, DataflowModes) {
 //     ./build/x_sim_tests --gtest_filter=Integration.Scaling
 // - Optional: set `CASE_OUTPUT_DIR=/path` to redirect generated outputs
 TEST(Integration, Scaling) {
-    auto case_dir = std::getenv("CASE_OUTPUT_DIR") ? std::string(std::getenv("CASE_OUTPUT_DIR")) : std::string(PROJECT_SRC_DIR) + std::string("/tests/cases");
+    auto case_dir = std::getenv("CASE_OUTPUT_DIR") ? std::string(std::getenv("CASE_OUTPUT_DIR")) : (std::filesystem::current_path() / "tests" / "cases").string();
     std::string case_toml = case_dir + std::string("/case_Scaling.toml");
     util::CaseConfig case_cfg;
     bool have_case = util::read_case_toml(case_toml, case_cfg);

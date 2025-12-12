@@ -27,19 +27,21 @@ struct CaseConfig {
     std::string c_type = "int32";
 };
 
-// Binary IO templates are provided in util/bin_io.h
-#include "util/bin_io.h"
-// Flexible read: try given path, then search upward from cwd, then PROJECT_SRC_DIR
-bool read_bin_int16_flexible(const std::string &path, std::vector<DataType> &v);
+} // namespace util
 
-// convenience wrapper for int32 write used by AIC
-inline bool write_bin_int32_from_acc(const std::string &path, const std::vector<AccType> &v) { return util::write_bin<AccType>(path, v); }
+// Binary IO templates were moved to util/utils.h; implementation files
+// that need binary IO should include util/utils.h instead of util/bin_io.h.
+
+namespace util {
 
 // write a TOML file for the case. This updates `cfg` to contain the
 // absolute paths actually written so callers can reuse them.
 bool write_case_toml(CaseConfig &cfg);
 // read an existing TOML file into CaseConfig
 bool read_case_toml(const std::string &path, CaseConfig &out);
+
+// write a minimal model config file (model_cfg.toml) used by cases
+bool write_config_file(const std::string& path, int array_rows, int array_cols);
 
 // Create case binaries and TOML for a given base name. This will create
 // `case_dir/base_name_A.bin`, `base_name_B.bin`, `base_name_C_golden.bin` and

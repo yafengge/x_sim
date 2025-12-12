@@ -33,9 +33,9 @@ TEST(VerifyUtil, ZeroSized) {
 TEST(BinIO, RoundTripInt16) {
     auto tmp = std::filesystem::temp_directory_path() / "x_sim_test_binio_int16.bin";
     std::vector<int16_t> in = {1,2,3,4,5};
-    EXPECT_TRUE(util::write_bin_int16(tmp.string(), in));
+    EXPECT_TRUE(util::write_bin<int16_t>(tmp.string(), in));
     std::vector<int16_t> out;
-    EXPECT_TRUE(util::read_bin_int16(tmp.string(), out));
+    EXPECT_TRUE(util::read_bin<int16_t>(tmp.string(), out));
     EXPECT_EQ(in.size(), out.size());
     for (size_t i=0;i<in.size();++i) EXPECT_EQ(in[i], out[i]);
 }
@@ -47,4 +47,14 @@ TEST(VerifyUtil, ComputeDiffs) {
     EXPECT_EQ(diffs.size(), 2u);
     EXPECT_EQ(diffs[0], 1u);
     EXPECT_EQ(diffs[1], 3u);
+}
+
+TEST(VerifyUtil, ComputeReferenceSmall) {
+    std::vector<int16_t> A = {1,2,3,4}; // 2x2
+    std::vector<int16_t> B = {5,6,7,8}; // 2x2
+    // reference: A * B = [[1*5+2*7, 1*6+2*8], [3*5+4*7, 3*6+4*8]]
+    std::vector<int32_t> expected = {19,22,43,50};
+    auto ref = util::compute_reference(A, 2, 2, B, 2);
+    ASSERT_EQ(ref.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i) EXPECT_EQ(ref[i], expected[i]);
 }

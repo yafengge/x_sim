@@ -1,5 +1,5 @@
 #include "util/case_io.h"
-#include "util/path.h"
+#include "util/utils.h"
 #include "config/mini_toml.h"
 #include <fstream>
 #include <iostream>
@@ -7,22 +7,23 @@
 #include <cstring>
 #include <filesystem>
 
+bool write_config_file(const std::string& path, int array_rows, int array_cols) {
+    std::ofstream fout(path);
+    if (!fout) return false;
+    fout << "[cube]\n";
+    fout << "array_rows = " << array_rows << "\n";
+    fout << "array_cols = " << array_cols << "\n";
+    return fout.good();
+}
+
 namespace util {
 
 // Binary read/write helpers are provided as header-only templates in
 // util/case_io.h. Keep remaining file-local helpers below.
 
-bool read_bin_int16_flexible(const std::string &path, std::vector<DataType> &v) {
-    std::vector<int16_t> tmp;
-    auto found = util::find_existing_path(path, 5);
-    if (found) {
-        if (read_bin<int16_t>(found->string(), tmp)) { v.assign(tmp.begin(), tmp.end()); return true; }
-        return false;
-    }
-    // fallback: try direct read of the original path
-    if (read_bin<int16_t>(path, tmp)) { v.assign(tmp.begin(), tmp.end()); return true; }
-    return false;
-}
+// Flexible read helper removed — callers should call `util::read_bin<DataType>`
+// or use `util::find_existing_path` + `util::read_bin<T>` if flexible
+// resolution is required.
 
 // read_bin<int32_t> is provided in header as template.
 
@@ -105,35 +106,40 @@ bool read_case_toml(const std::string &path, CaseConfig &out) {
     out.b_path = get("input.b.path");
     out.c_golden_path = get("output.c.golden");
     out.c_out_path = get("output.c.out");
-    // If TOML uses relative paths, resolve them against PROJECT_SRC_DIR so
-    // tests and AIC can find files regardless of the current working dir.
+    // If TOML uses relative paths, resolve them relative to the case TOML's
+    // directory (instead of relying on a build-time PROJECT_SRC_DIR macro).
     try {
+        std::filesystem::path case_parent;
+        try {
+            std::filesystem::path cp(path);
+            case_parent = cp.has_parent_path() ? cp.parent_path() : std::filesystem::current_path();
+        } catch(...) { case_parent = std::filesystem::current_path(); }
+
         if (!out.a_path.empty()) {
             std::filesystem::path p(out.a_path);
-            if (p.is_relative()) out.a_path = (std::filesystem::path(PROJECT_SRC_DIR) / p).string();
+            if (p.is_relative()) out.a_path = (case_parent / p).string();
         }
         if (!out.b_path.empty()) {
             std::filesystem::path p(out.b_path);
-            if (p.is_relative()) out.b_path = (std::filesystem::path(PROJECT_SRC_DIR) / p).string();
+            if (p.is_relative()) out.b_path = (case_parent / p).string();
         }
         if (!out.c_golden_path.empty()) {
             std::filesystem::path p(out.c_golden_path);
-            if (p.is_relative()) out.c_golden_path = (std::filesystem::path(PROJECT_SRC_DIR) / p).string();
+            if (p.is_relative()) out.c_golden_path = (case_parent / p).string();
         }
         if (!out.c_out_path.empty()) {
             std::filesystem::path p(out.c_out_path);
-            if (p.is_relative()) out.c_out_path = (std::filesystem::path(PROJECT_SRC_DIR) / p).string();
+            if (p.is_relative()) out.c_out_path = (case_parent / p).string();
         }
         // resolve model_cfg if present in its own table
         out.model_cfg_path = get("model_cfg.path");
         if (!out.model_cfg_path.empty()) {
             std::filesystem::path p(out.model_cfg_path);
-            if (p.is_relative()) out.model_cfg_path = (std::filesystem::path(PROJECT_SRC_DIR) / p).string();
+            if (p.is_relative()) out.model_cfg_path = (case_parent / p).string();
         }
         // make case_path absolute as well
         std::filesystem::path cp(path);
-        if (cp.is_relative()) out.case_path = (std::filesystem::path(PROJECT_SRC_DIR) / cp).string();
-        else out.case_path = path;
+        out.case_path = std::filesystem::absolute(cp).string();
     } catch(...) {
         // ignore filesystem errors; keep original values if resolution fails
     }
@@ -171,8 +177,8 @@ bool create_cube_case_config(const std::string &case_toml, CaseConfig &cfg,
     // reference the shared model config by default (relative path)
     cfg.model_cfg_path = std::string("model_cfg.toml");
 
-    if (!write_bin_int16(cfg.a_path, A)) return false;
-    if (!write_bin_int16(cfg.b_path, B)) return false;
+    if (!util::write_bin<int16_t>(cfg.a_path, A)) return false;
+    if (!util::write_bin<int16_t>(cfg.b_path, B)) return false;
 
     std::vector<int32_t> Cgold(static_cast<size_t>(M) * static_cast<size_t>(N), 0);
     for (int i = 0; i < M; ++i) {
@@ -184,7 +190,7 @@ bool create_cube_case_config(const std::string &case_toml, CaseConfig &cfg,
             Cgold[i* N + j] = acc;
         }
     }
-    if (!write_bin_int32(cfg.c_golden_path, Cgold)) return false;
+    if (!util::write_bin<int32_t>(cfg.c_golden_path, Cgold)) return false;
     return write_case_toml(cfg);
 }
 

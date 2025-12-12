@@ -18,11 +18,11 @@
 
 // Read A/B binaries according to an already-populated CaseConfig
 bool AIC::read_bins_from_cfg(const util::CaseConfig &cfg, std::vector<DataType> &A, std::vector<DataType> &B) {
-  if (!util::read_bin_int16_flexible(cfg.a_path, A)) {
+  if (!util::read_bin<DataType>(cfg.a_path, A)) {
     std::cerr << "AIC::start: failed to read A from " << cfg.a_path << std::endl;
     return false;
   }
-  if (!util::read_bin_int16_flexible(cfg.b_path, B)) {
+  if (!util::read_bin<DataType>(cfg.b_path, B)) {
     std::cerr << "AIC::start: failed to read B from " << cfg.b_path << std::endl;
     return false;
   }
