@@ -1,6 +1,6 @@
 #include "util/case_io.h"
 #include "util/utils.h"
-#include "config/mini_toml.h"
+#include "config/toml_adapter.h"
 #include "mem_if.h"
 #include <fstream>
 #include <iostream>
@@ -81,7 +81,7 @@ bool write_case_toml(CaseConfig &cfg) {
 
 // 从 TOML 读取 CaseConfig，解析相对路径时以 TOML 所在目录为基准
 bool read_case_toml(const std::string &path, CaseConfig &out) {
-    auto map = parse_toml_file(path);
+    auto map = toml_adapter::parse_toml_file(path);
     if (map.empty()) return false;
     out.case_path = path;
     auto get = [&](const std::string &k)->std::string{

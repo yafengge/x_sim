@@ -1,5 +1,5 @@
 #include "config/config_mgr.h"
-#include "config/mini_toml.h"
+#include "config/toml_adapter.h"
 #include <filesystem>
 #include <algorithm>
 #include <cctype>
@@ -33,7 +33,7 @@ void Manager::ensure_loaded(const std::string &path) const {
     } catch (...) {}
     if (it == cache_.end() || it->second.mtime != mtime) {
         CacheEntry e;
-        e.map = parse_toml_file(path);
+        e.map = toml_adapter::parse_toml_file(path);
         e.mtime = mtime;
         cache_[path] = std::move(e);
     }
