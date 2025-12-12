@@ -6,12 +6,10 @@
 #include "systolic.h"
 #include "clock.h"
 
-// cube.h — Cube 顶层封装（中文注释）
-// `Cube` 是对 `SystolicArray` 的轻量封装，负责接入时钟与内存，并暴露便捷的
-// 算法接口（如 `run`、`verify_result`）。配置按需从文件读取。
-// Cube 仅负责模块组合，不实现周期级仿真细节。
-// Cube 作为顶层 API，供测试与外部驱动使用。
-// Cube 作为顶层封装，负责初始化和持有各个子单元（当前为 SystolicArray）
+// 文件：cube.h
+// 说明：Cube 顶层封装。
+// `Cube` 是对 `SystolicArray` 的薄包装，负责接入外部时钟与内存，读取/规范化配置，
+// 并提供对外的 `run` 等便捷接口供测试和工具调用。周期级实现仍留在子模块中。
 class Cube {
 public:
     explicit Cube(const std::string& config_path,

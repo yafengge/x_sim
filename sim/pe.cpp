@@ -1,9 +1,9 @@
+#// 文件：pe.cpp
+#// 说明：PE 实现文件。
+#// 实现处理单元的本地乘加逻辑、流水线寄存器与两阶段提交（tick/commit）机制，
+#// 主要函数包括 `reset`、`load_weight`、`prepare_inputs`、`tick` 和 `commit`。
 #include "pe.h"
 #include <iostream>
-
-// pe.cpp — 处理单元（PE）实现（中文注释）
-// 每个 PE 实现局部乘加逻辑、流水线寄存器与两阶段提交（tick/commit）机制，
-// 该文件实现了 PE 的重置、加载权重、计算周期与调试打印功能。
 PE::PE(int x, int y) 
     : id_x(x), id_y(y), weight(0), activation(0), 
       accumulator(0), weight_valid(false), active(false) {

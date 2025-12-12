@@ -1,8 +1,7 @@
-// aic.cpp — AIC 顶层实现（中文注释）
-// 本文件实现 AIC 类的组装逻辑：创建时钟、内存并构建 Cube 实例。
-// AIC 提供两步接口：先调用 `build(case_toml)` 读取并保存 `CaseConfig`，
-// 然后调用 `start()`（无参）执行预载(Preload) A/B 到内存、运行 `Cube::run`，
-// 并读取累加器区域导出结果以与 golden 比对。
+// 文件：aic.cpp
+// 说明：AIC 顶层实现。负责组装时钟、内存和 Cube，并提供两步运行接口：
+//  1) `build(case_toml)`：读取 case TOML 并根据 model_cfg 构造 Cube；
+//  2) `start()`：预载 A/B 到内存，运行 Cube 并导出累加器结果与 golden 比对。
 
 #include "aic.h"
 
