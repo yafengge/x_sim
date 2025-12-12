@@ -1,4 +1,7 @@
-# Build artifacts
+# Ignore VS Code workspace/editor settings
+/.vscode/
+
+# Keep other project ignores (if any) below# Build artifacts
 *.o
 
 build/
