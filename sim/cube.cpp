@@ -1,5 +1,5 @@
 #include "cube.h"
-#include "config/config_mgr.h"
+#include "config/config.h"
 #include <stdexcept>
 
 // 文件：cube.cpp
@@ -32,7 +32,6 @@ void Cube::config(const std::string &path) {
     } else {
         config_path_ = path;
     }
-    // Additional cube-level validation or config reads could be placed here.
 }
 
 // Run wrapper forwards to the internal SystolicArray implementation.

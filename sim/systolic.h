@@ -127,10 +127,8 @@ public:
                   p_clock_t external_clock,
                   p_mem_t external_mem = nullptr);
 
-    // helpers that read configuration keys from config file (no caching)
-    int cfg_int(const std::string& key, int def) const;
-    bool cfg_bool(const std::string& key, bool def) const;
-    Dataflow cfg_dataflow(const std::string& key, Dataflow def) const;
+    // Configuration helpers are provided by `get<T>()`; callers
+    // should call that directly when needed (it uses the runtime default path).
     ~SystolicArray();
     
     // 重置阵列

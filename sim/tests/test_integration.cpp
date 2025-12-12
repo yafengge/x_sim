@@ -6,7 +6,7 @@
 #include <chrono>
 #include "systolic.h"
 #include "aic.h"
-#include "config/config_mgr.h"
+#include "config/config.h"
 
 #include <gtest/gtest.h>
 #include "util/utils.h"
@@ -16,6 +16,10 @@
 #include <cstdlib>
 
 // 文件：tests/test_integration.cpp
+// Ensure tests use the repo-wide default config path
+namespace {
+    struct _ConfigTestInit { _ConfigTestInit() { config::set_default_path("model_cfg.toml"); } } _config_test_init;
+}
 // 说明：集成测试集合（使用 GoogleTest）。
 // 测试采用 case-driven 流程：每个 case 由一个 TOML 描述
 // 输入二进制文件路径与 meta 信息。测试通过调用 `AIC::build(case_toml)`

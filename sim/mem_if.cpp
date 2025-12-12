@@ -1,5 +1,5 @@
 #include "mem_if.h"
-#include "config/config_mgr.h"
+#include "config/config.h"
 
 #include <cstddef>
 #include <memory>
@@ -26,26 +26,23 @@ void Mem::config(const std::string &config_path) {
         path = "model_cfg.toml";
     }
 
-    int tmp_int = 0;
-    if (!get_int_key(path, "memory.memory_latency", tmp_int)) tmp_int = 10;
-    latency_ = tmp_int;
+    auto v_latency = get<int>("memory.memory_latency");
+    latency_ = v_latency.value_or(10);
 
-    if (!get_int_key(path, "memory.bandwidth", tmp_int)) tmp_int = 4;
-    issue_bw_read_ = issue_bw_write_ = tmp_int;
-    complete_bw_read_ = complete_bw_write_ = tmp_int;
+    auto v_bw = get<int>("memory.bandwidth");
+    int bw = v_bw.value_or(4);
+    issue_bw_read_ = issue_bw_write_ = bw;
+    complete_bw_read_ = complete_bw_write_ = bw;
 
-    if (!get_int_key(path, "memory.max_outstanding", tmp_int)) tmp_int = 0;
-    if (tmp_int > 0) {
-        max_outstanding_ = tmp_int;
+    auto v_maxout = get<int>("memory.max_outstanding");
+    if (v_maxout.has_value() && v_maxout.value() > 0) {
+        max_outstanding_ = v_maxout.value();
     } else {
         max_outstanding_ = complete_bw_read_ * latency_;
     }
 
     // memory size: default to 64 elements (previously 64 KB interpreted as elements)
-    int size_kb = 64;
-    if (!get_int_key(path, "memory.size_kb", size_kb)) {
-        // no explicit size configured, keep default
-    }
+    int size_kb = get<int>("memory.size_kb").value_or(64);
     memory_.resize(size_kb);
 
     // ensure accumulator memory is at least the same size (one-to-one mapping)

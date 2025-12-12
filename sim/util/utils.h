@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 #include <string>
+#include <algorithm>
+#include <cctype>
 #include "util/case_io.h"
 #include <optional>
 #include <filesystem>
@@ -37,5 +39,16 @@ std::optional<std::filesystem::path> find_existing_path(const std::string &path,
 
 // 将给定路径解析为绝对路径（若已是绝对路径则直接返回）。
 std::string resolve_path(const std::string &path);
+
+// String utilities
+inline std::string to_lower(std::string s) {
+	std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+	return s;
+}
+
+inline std::string to_upper(std::string s) {
+	std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return static_cast<char>(std::toupper(c)); });
+	return s;
+}
 
 } // namespace util

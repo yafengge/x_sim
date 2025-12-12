@@ -1,6 +1,6 @@
 #include "systolic.h"
 #include "clock.h"
-#include "config/config_mgr.h"
+#include "config/config.h"
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -451,35 +451,43 @@ double SystolicArray::get_utilization() const {
     return (double)stats.mac_operations / peak_macs;
 }
 
-int SystolicArray::cfg_int(const std::string& key, int def) const {
-    int v;
-    if (get_int_key(config_path_, key, v)) return v;
-    return def;
-}
-
-bool SystolicArray::cfg_bool(const std::string& key, bool def) const {
-    bool v;
-    if (get_bool_key(config_path_, key, v)) return v;
-    return def;
-}
-
-Dataflow SystolicArray::cfg_dataflow(const std::string& key, Dataflow def) const {
-    Dataflow d;
-    if (get_dataflow_key(config_path_, key, d)) return d;
-    return def;
-}
+// Note: Previously SystolicArray provided small wrapper helpers `cfg_int`/`cfg_bool`
+// and `cfg_dataflow`. These were removed — call the global `get<T>(key)`
+// wrapper to obtain optional values and apply defaults with `value_or()`.
 
 void SystolicArray::load_config_cache() {
-    cfg_array_rows = cfg_int("cube.array_rows", 8);
-    cfg_array_cols = cfg_int("cube.array_cols", 8);
-    cfg_tile_rows = cfg_int("cube.tile_rows", cfg_array_rows);
-    cfg_tile_cols = cfg_int("cube.tile_cols", cfg_array_cols);
-    cfg_unroll = cfg_int("cube.unroll", 1);
-    cfg_progress_interval = cfg_int("cube.progress_interval", 0);
-    cfg_trace_cycles = cfg_int("cube.trace_cycles", 0);
-    cfg_pe_latency = cfg_int("cube.pe_latency", 1);
-    cfg_verbose = cfg_bool("cube.verbose", false);
-    cfg_dataflow_cached = cfg_dataflow("cube.dataflow", Dataflow::WEIGHT_STATIONARY);
+    // Prefer loading a strong-typed Config via config_mgr; fall back to legacy getters.
+    std::string err;
+    auto cfg_opt = get<config::Config>("");
+    if (cfg_opt.has_value()) {
+        const auto &c = cfg_opt.value();
+        cfg_array_rows = c.array_rows > 0 ? c.array_rows : 8;
+        cfg_array_cols = c.array_cols > 0 ? c.array_cols : 8;
+        cfg_tile_rows = c.tile_rows > 0 ? c.tile_rows : cfg_array_rows;
+        cfg_tile_cols = c.tile_cols > 0 ? c.tile_cols : cfg_array_cols;
+        cfg_dataflow_cached = c.dataflow;
+        // keep other knobs via legacy getters until they are added to Config
+        cfg_unroll = get<int>("cube.unroll").value_or(1);
+        cfg_progress_interval = get<int>("cube.progress_interval").value_or(0);
+        cfg_trace_cycles = get<int>("cube.trace_cycles").value_or(0);
+        cfg_pe_latency = get<int>("cube.pe_latency").value_or(1);
+        cfg_verbose = get<bool>("cube.verbose").value_or(false);
+    } else {
+        // fallback to legacy getters
+        cfg_array_rows = get<int>("cube.array_rows").value_or(8);
+        cfg_array_cols = get<int>("cube.array_cols").value_or(8);
+        cfg_tile_rows = get<int>("cube.tile_rows").value_or(cfg_array_rows);
+        cfg_tile_cols = get<int>("cube.tile_cols").value_or(cfg_array_cols);
+        cfg_unroll = get<int>("cube.unroll").value_or(1);
+        cfg_progress_interval = get<int>("cube.progress_interval").value_or(0);
+        cfg_trace_cycles = get<int>("cube.trace_cycles").value_or(0);
+        cfg_pe_latency = get<int>("cube.pe_latency").value_or(1);
+        cfg_verbose = get<bool>("cube.verbose").value_or(false);
+        cfg_dataflow_cached = get<Dataflow>("cube.dataflow").value_or(Dataflow::WEIGHT_STATIONARY);
+        if (!err.empty()) {
+            std::cerr << "load_config_cache: failed to load config '" << config_path_ << "': " << err << std::endl;
+        }
+    }
 }
 
 // Forward verify_result to the standalone utility implementation.

@@ -1,6 +1,6 @@
 #include "util/case_io.h"
 #include "util/utils.h"
-#include "config/config_mgr.h"
+#include "config/config.h"
 #include "mem_if.h"
 #include <fstream>
 #include <iostream>
@@ -81,63 +81,26 @@ bool write_case_toml(CaseConfig &cfg) {
 
 // 从 TOML 读取 CaseConfig，解析相对路径时以 TOML 所在目录为基准
 bool read_case_toml(const std::string &path, CaseConfig &out) {
-    auto map = config_mgr::parse_toml_file(path);
+    // Parse using TomlParser (returns a flat dotted-key -> string map)
+    auto map = config::TomlParser::parse_file(path);
     if (map.empty()) return false;
-    out.case_path = path;
-    auto get = [&](const std::string &k)->std::string{
-        auto it = map.find(k);
-        if (it == map.end()) return std::string();
-        return it->second;
-    };
-    out.a_path = get("input.a.path");
-    out.b_path = get("input.b.path");
-    out.c_golden_path = get("output.c.golden");
-    out.c_out_path = get("output.c.out");
 
-    try {
-        std::filesystem::path case_parent;
-        try {
-            std::filesystem::path cp(path);
-            case_parent = cp.has_parent_path() ? cp.parent_path() : std::filesystem::current_path();
-        } catch(...) { case_parent = std::filesystem::current_path(); }
+    // Helper to populate CaseConfig from the flat map
+    bool ok = CaseConfig::from_map(map, path, out);
 
-        if (!out.a_path.empty()) {
-            std::filesystem::path p(out.a_path);
-            if (p.is_relative()) out.a_path = (case_parent / p).string();
+    // Validate referenced model_cfg using the central manager (non-fatal)
+    if (ok && !out.model_cfg_path.empty()) {
+        std::string err;
+        auto prov = config::get_provider();
+        auto mc = prov->load_config(out.model_cfg_path, &err);
+        if (!mc.has_value()) {
+            std::cerr << "read_case_toml: failed to load model config '" << out.model_cfg_path << "'";
+            if (!err.empty()) std::cerr << ": " << err;
+            std::cerr << std::endl;
         }
-        if (!out.b_path.empty()) {
-            std::filesystem::path p(out.b_path);
-            if (p.is_relative()) out.b_path = (case_parent / p).string();
-        }
-        if (!out.c_golden_path.empty()) {
-            std::filesystem::path p(out.c_golden_path);
-            if (p.is_relative()) out.c_golden_path = (case_parent / p).string();
-        }
-        if (!out.c_out_path.empty()) {
-            std::filesystem::path p(out.c_out_path);
-            if (p.is_relative()) out.c_out_path = (case_parent / p).string();
-        }
-        out.model_cfg_path = get("model_cfg.path");
-        if (!out.model_cfg_path.empty()) {
-            std::filesystem::path p(out.model_cfg_path);
-            if (p.is_relative()) out.model_cfg_path = (case_parent / p).string();
-        }
-        std::filesystem::path cp(path);
-        out.case_path = std::filesystem::absolute(cp).string();
-    } catch(...) {
-        // 若解析失败则保留原始值
     }
-    auto sa = get("input.a.addr"); if (!sa.empty()) out.a_addr = static_cast<uint32_t>(std::stoul(sa));
-    auto sb = get("input.b.addr"); if (!sb.empty()) out.b_addr = static_cast<uint32_t>(std::stoul(sb));
-    auto sc = get("output.c.addr"); if (!sc.empty()) out.c_addr = static_cast<uint32_t>(std::stoul(sc));
-    auto ta = get("input.a.type"); if (!ta.empty()) out.a_type = ta;
-    auto tb = get("input.b.type"); if (!tb.empty()) out.b_type = tb;
-    auto tc = get("output.c.type"); if (!tc.empty()) out.c_type = tc;
-    auto mm = get("meta.m"); if (!mm.empty()) out.M = std::stoi(mm);
-    auto kk = get("meta.k"); if (!kk.empty()) out.K = std::stoi(kk);
-    auto nn = get("meta.n"); if (!nn.empty()) out.N = std::stoi(nn);
-    auto endian = get("meta.endian"); if (!endian.empty()) out.endian = endian;
-    return true;
+
+    return ok;
 }
 
 bool create_cube_case_config(const std::string &case_toml, CaseConfig &cfg,
@@ -188,6 +151,65 @@ bool read_bins_from_cfg(const CaseConfig &cfg, std::vector<DataType> &A, std::ve
         std::cerr << "read_bins_from_cfg: failed to read B from " << cfg.b_path << std::endl;
         return false;
     }
+    return true;
+}
+
+// Implementation of CaseConfig::from_map
+bool CaseConfig::from_map(const config::TomlParser::map_t &m, const std::string &case_path, CaseConfig &out) {
+    out.case_path = case_path;
+    auto get = [&](const std::string &k)->std::string{
+        auto it = m.find(k);
+        if (it == m.end()) return std::string();
+        return it->second;
+    };
+    out.a_path = get("input.a.path");
+    out.b_path = get("input.b.path");
+    out.c_golden_path = get("output.c.golden");
+    out.c_out_path = get("output.c.out");
+
+    try {
+        std::filesystem::path case_parent;
+        try {
+            std::filesystem::path cp(case_path);
+            case_parent = cp.has_parent_path() ? cp.parent_path() : std::filesystem::current_path();
+        } catch(...) { case_parent = std::filesystem::current_path(); }
+
+        if (!out.a_path.empty()) {
+            std::filesystem::path p(out.a_path);
+            if (p.is_relative()) out.a_path = (case_parent / p).string();
+        }
+        if (!out.b_path.empty()) {
+            std::filesystem::path p(out.b_path);
+            if (p.is_relative()) out.b_path = (case_parent / p).string();
+        }
+        if (!out.c_golden_path.empty()) {
+            std::filesystem::path p(out.c_golden_path);
+            if (p.is_relative()) out.c_golden_path = (case_parent / p).string();
+        }
+        if (!out.c_out_path.empty()) {
+            std::filesystem::path p(out.c_out_path);
+            if (p.is_relative()) out.c_out_path = (case_parent / p).string();
+        }
+        out.model_cfg_path = get("model_cfg.path");
+        if (!out.model_cfg_path.empty()) {
+            std::filesystem::path p(out.model_cfg_path);
+            if (p.is_relative()) out.model_cfg_path = (case_parent / p).string();
+        }
+        std::filesystem::path cp(case_path);
+        out.case_path = std::filesystem::absolute(cp).string();
+    } catch(...) {
+        // 若解析失败则保留原始值
+    }
+    auto sa = get("input.a.addr"); if (!sa.empty()) out.a_addr = static_cast<uint32_t>(std::stoul(sa));
+    auto sb = get("input.b.addr"); if (!sb.empty()) out.b_addr = static_cast<uint32_t>(std::stoul(sb));
+    auto sc = get("output.c.addr"); if (!sc.empty()) out.c_addr = static_cast<uint32_t>(std::stoul(sc));
+    auto ta = get("input.a.type"); if (!ta.empty()) out.a_type = ta;
+    auto tb = get("input.b.type"); if (!tb.empty()) out.b_type = tb;
+    auto tc = get("output.c.type"); if (!tc.empty()) out.c_type = tc;
+    auto mm = get("meta.m"); if (!mm.empty()) out.M = std::stoi(mm);
+    auto kk = get("meta.k"); if (!kk.empty()) out.K = std::stoi(kk);
+    auto nn = get("meta.n"); if (!nn.empty()) out.N = std::stoi(nn);
+    auto endian = get("meta.endian"); if (!endian.empty()) out.endian = endian;
     return true;
 }
 

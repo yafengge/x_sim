@@ -3,6 +3,7 @@
 #include <vector>
 #include <cstdint>
 #include "types.h"
+#include "config/config.h"
 #include <fstream>
 
 namespace util {
@@ -25,6 +26,10 @@ struct CaseConfig {
     std::string a_type = "int16";
     std::string b_type = "int16";
     std::string c_type = "int32";
+
+    // Populate from a flat dotted-key map produced by TomlParser.
+    // Returns true on success.
+    static bool from_map(const config::TomlParser::map_t &m, const std::string &case_path, CaseConfig &out);
 };
 
 // 将 `cfg` 写为 TOML 文件，写入时会把二进制路径转换为绝对路径并更新 `cfg`。

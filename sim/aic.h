@@ -7,7 +7,7 @@
 #include "cube.h"
 #include "clock.h"
 #include "mem_if.h"
-#include "config/config_mgr.h"
+#include "config/config.h"
 // utilities for per-case TOML and binary I/O
 #include "util/case_io.h"
 
