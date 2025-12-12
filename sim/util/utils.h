@@ -23,7 +23,9 @@ struct CaseMeta {
     int b_cols = 0;
 };
 
-bool write_case_toml(const std::string& path, const CaseMeta& meta);
-bool read_case_toml(const std::string& path, CaseMeta& meta);
+// NOTE: Case/TOML handling now lives in util/case_io.{h,cpp} using
+// `util::CaseConfig`. These legacy helpers were removed to avoid
+// duplication—use `util::read_case_toml` / `util::write_case_toml`
+// from `sim/util/case_io.h` instead.
 
 } // namespace util
