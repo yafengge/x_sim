@@ -45,10 +45,7 @@ private:
     p_cube_t cube_;
     // Helper methods
     bool read_bins_from_cfg(const util::CaseConfig &cfg, std::vector<DataType> &A, std::vector<DataType> &B);
-    std::string resolve_path(const std::string &path) const;
     void preload_into_mem(const util::CaseConfig &cfg, const std::vector<DataType> &A, const std::vector<DataType> &B);
-    bool write_and_compare(const util::CaseConfig &cfg, const std::vector<AccType> &C,
-                           const std::vector<DataType> &A, const std::vector<DataType> &B);
     // stored case configuration (set by build)
     util::CaseConfig case_cfg_;
 };

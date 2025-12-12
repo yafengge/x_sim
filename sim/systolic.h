@@ -98,19 +98,15 @@ private:
     std::vector<std::shared_ptr<std::deque<DataType>>> completionA_pool;
     std::vector<std::shared_ptr<std::deque<DataType>>> completionB_pool;
 
-    // Helpers extracted from run for modularity
-    void prefetch_tile(const std::vector<DataType>& A, int A_cols,
-                       const std::vector<DataType>& B, int B_cols,
-                       int mb, int nb, int kb, int m_tile, int n_tile, int k_tile,
-                       std::vector<FIFO>& localA,
-                       std::vector<FIFO>& localB);
+    // Helpers for tile execution (small, single-responsibility)
+    void init_tile_state(int m_tile, int n_tile);
+    bool execute_tile_cycles(std::vector<FIFO>& localA_pool,
+                             std::vector<FIFO>& localB_pool,
+                             int m_tile, int n_tile, int k_tile);
+    void commit_tile_results(int mb, int nb, int m_tile, int n_tile,
+                             uint32_t c_addr, int N);
 
-    void process_tile(std::vector<FIFO>& localA,
-                      std::vector<FIFO>& localB,
-                      int mb, int nb, int m_tile, int n_tile, int k_tile,
-                      std::vector<AccType>& C, int N);
-
-    // New helpers to support memory-driven run_from_memory.
+    // New helpers to support memory-driven runs.
     bool issue_prefetch_for_tile(int mb, int nb, int kb, int m_tile, int n_tile, int k_tile,
                                  int A_cols, int B_cols,
                                  uint32_t a_addr, uint32_t b_addr,
@@ -124,7 +120,7 @@ private:
                            std::vector<FIFO>& localA_pool,
                            std::vector<FIFO>& localB_pool);
 
-    bool process_tile_from_memory(std::vector<FIFO>& localA_pool,
+    bool process_tile(std::vector<FIFO>& localA_pool,
                                   std::vector<FIFO>& localB_pool,
                                   int mb, int nb, int m_tile, int n_tile, int k_tile,
                                   uint32_t c_addr, int N);
@@ -143,13 +139,13 @@ public:
     // 重置阵列
     void reset();
     
-    // (旧接口已移除) 矩阵乘法请使用 `run_from_memory` 或者通过 `Cube::run` 入口
+    // (旧接口已移除) 矩阵乘法请使用 `run` 或者通过 `Cube::run` 入口
 
     // Run the array using data already present in `memory` at the provided
     // addresses. The array will issue read requests to `memory` and commit
     // accumulator results back into memory via `store_acc_direct` at offsets
     // starting at `c_addr`.
-    bool run_from_memory(int M, int N, int K,
+    bool run(int M, int N, int K,
                          uint32_t a_addr, uint32_t b_addr, uint32_t c_addr);
     
     // 单周期推进

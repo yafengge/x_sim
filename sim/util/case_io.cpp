@@ -40,6 +40,24 @@ bool read_bin_int16(const std::string &path, std::vector<int16_t> &v) {
     return ifs.good();
 }
 
+bool read_bin_int16_flexible(const std::string &path, std::vector<DataType> &v) {
+    // try direct read first
+    std::vector<int16_t> tmp;
+    if (read_bin_int16(path, tmp)) { v.assign(tmp.begin(), tmp.end()); return true; }
+    std::filesystem::path p(path);
+    if (p.is_relative()) {
+        std::filesystem::path cwd = std::filesystem::current_path();
+        for (int depth = 0; depth < 5; ++depth) {
+            std::string candidate = (cwd / path).string();
+            if (read_bin_int16(candidate, tmp)) { v.assign(tmp.begin(), tmp.end()); return true; }
+            if (cwd.has_parent_path()) cwd = cwd.parent_path(); else break;
+        }
+        std::string alt = std::string(PROJECT_SRC_DIR) + std::string("/") + path;
+        if (read_bin_int16(alt, tmp)) { v.assign(tmp.begin(), tmp.end()); return true; }
+    }
+    return false;
+}
+
 bool read_bin_int32(const std::string &path, std::vector<int32_t> &v) {
     std::ifstream ifs(path, std::ios::binary | std::ios::ate);
     if (!ifs) return false;

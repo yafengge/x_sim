@@ -34,10 +34,9 @@ void Cube::config(const std::string &path) {
     // Additional cube-level validation or config reads could be placed here.
 }
 
-// `run` convenience wrapper removed; prefer `run_from_memory` for memory-driven execution.
-
-bool Cube::run_from_memory(int M, int N, int K,
+// Run wrapper forwards to the internal SystolicArray implementation.
+bool Cube::run(int M, int N, int K,
                           uint32_t a_addr, uint32_t b_addr, uint32_t c_addr) {
-    return systolic_->run_from_memory(M, N, K, a_addr, b_addr, c_addr);
+    return systolic_->run(M, N, K, a_addr, b_addr, c_addr);
 }
 

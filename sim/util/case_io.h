@@ -31,6 +31,8 @@ bool write_bin_int16(const std::string &path, const std::vector<int16_t> &v);
 bool write_bin_int32(const std::string &path, const std::vector<int32_t> &v);
 bool read_bin_int16(const std::string &path, std::vector<int16_t> &v);
 bool read_bin_int32(const std::string &path, std::vector<int32_t> &v);
+// Flexible read: try given path, then search upward from cwd, then PROJECT_SRC_DIR
+bool read_bin_int16_flexible(const std::string &path, std::vector<DataType> &v);
 
 // convenience wrapper for int32 write used by AIC
 bool write_bin_int32_from_acc(const std::string &path, const std::vector<AccType> &v);

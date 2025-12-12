@@ -1,6 +1,117 @@
 #include "util/verify.h"
+#include <filesystem>
+#include <fstream>
 
 namespace util {
+
+std::string resolve_path(const std::string &path) {
+    std::filesystem::path p(path);
+    if (p.is_absolute()) return path;
+    return std::string(PROJECT_SRC_DIR) + std::string("/") + path;
+}
+
+void print_diffs(const std::vector<int32_t>& a, const std::vector<int32_t>& b) {
+    size_t n = std::min(a.size(), b.size());
+    size_t diffs = 0;
+    for (size_t i = 0; i < n; ++i) {
+        if (a[i] != b[i]) {
+            if (diffs < 20) {
+                std::cerr << "diff at " << i << ": expected=" << b[i] << " got=" << a[i] << "\n";
+            }
+            ++diffs;
+        }
+    }
+    if (a.size() != b.size()) {
+        std::cerr << "size mismatch: got=" << a.size() << " golden=" << b.size() << "\n";
+    }
+    std::cerr << "total differences: " << diffs << "\n";
+}
+
+bool write_and_compare(const CaseConfig &cfg, const std::vector<AccType> &C,
+                       const std::vector<DataType> &A, const std::vector<DataType> &B) {
+    std::string c_out_resolved = resolve_path(cfg.c_out_path);
+    if (!write_bin_int32_from_acc(c_out_resolved, C)) {
+        std::cerr << "write_and_compare: failed to write C_out to " << c_out_resolved << std::endl;
+    }
+
+    if (!cfg.c_golden_path.empty()) {
+        std::string c_golden_resolved = resolve_path(cfg.c_golden_path);
+        std::vector<int32_t> Cgold;
+        if (read_bin_int32(c_golden_resolved, Cgold)) {
+            if (Cgold.size() != C.size()) {
+                std::cerr << "write_and_compare: golden size mismatch: " << Cgold.size() << " vs " << C.size() << std::endl;
+                return false;
+            }
+            bool match = true;
+            for (size_t i = 0; i < C.size(); ++i) {
+                if (C[i] != Cgold[i]) { match = false; break; }
+            }
+            if (!match) {
+                std::cerr << "write_and_compare: result does not match golden for case " << cfg.case_path << std::endl;
+                std::vector<size_t> diffs_idx;
+                for (size_t ii = 0; ii < C.size(); ++ii) {
+                    if (C[ii] != Cgold[ii]) diffs_idx.push_back(ii);
+                }
+                size_t show = std::min<size_t>(diffs_idx.size(), 10);
+                for (size_t d = 0; d < show; ++d) {
+                    size_t idx = diffs_idx[d];
+                    size_t row = cfg.M > 0 ? idx / cfg.N : 0;
+                    size_t col = cfg.N > 0 ? idx % cfg.N : 0;
+                    std::cerr << "diff[" << d << "] idx=" << idx << " (r=" << row << ",c=" << col << ") expected=" << Cgold[idx] << " got=" << C[idx] << "\n";
+                    std::cerr << "  A[row] = [";
+                    for (int k = 0; k < cfg.K; ++k) {
+                        if (k) std::cerr << ",";
+                        std::cerr << A[row * cfg.K + k];
+                    }
+                    std::cerr << "]\n";
+                    std::cerr << "  B[col] = [";
+                    for (int k = 0; k < cfg.K; ++k) {
+                        if (k) std::cerr << ",";
+                        std::cerr << B[k * cfg.N + col];
+                    }
+                    std::cerr << "]\n";
+                }
+
+                // Write diffs into a generated-results directory to avoid committing them
+                std::filesystem::path outdir = std::filesystem::path(PROJECT_SRC_DIR) / "tests" / "results";
+                std::error_code ec;
+                std::filesystem::create_directories(outdir, ec);
+                std::string base_name;
+                if (!cfg.case_path.empty()) {
+                    std::filesystem::path cp(cfg.case_path);
+                    base_name = cp.stem().string();
+                } else {
+                    std::filesystem::path cp(cfg.c_out_path);
+                    base_name = cp.stem().string();
+                }
+                std::filesystem::path diff_path = outdir / (base_name + std::string(".diff"));
+                std::ofstream df(diff_path);
+                if (df) {
+                    df << "case=" << cfg.case_path << "\n";
+                    df << "total_diffs=" << diffs_idx.size() << "\n";
+                    for (size_t idx : diffs_idx) {
+                        size_t row = cfg.M > 0 ? idx / cfg.N : 0;
+                        size_t col = cfg.N > 0 ? idx % cfg.N : 0;
+                        df << idx << "," << row << "," << col << ",got=" << C[idx] << ",exp=" << Cgold[idx] << "\n";
+                        df << "A_row:";
+                        for (int k = 0; k < cfg.K; ++k) { if (k) df << ","; df << A[row * cfg.K + k]; }
+                        df << "\nB_col:";
+                        for (int k = 0; k < cfg.K; ++k) { if (k) df << ","; df << B[k * cfg.N + col]; }
+                        df << "\n---\n";
+                    }
+                    df.close();
+                    std::cerr << "write_and_compare: wrote diff file: " << diff_path.string() << std::endl;
+                }
+
+                print_diffs(std::vector<int32_t>(C.begin(), C.end()), Cgold);
+                return false;
+            }
+        } else {
+            std::cerr << "write_and_compare: could not read golden file " << cfg.c_golden_path << std::endl;
+        }
+    }
+    return true;
+}
 
 bool verify_result(const std::vector<DataType>& A, int A_rows, int A_cols,
                    const std::vector<DataType>& B, int B_rows, int B_cols,

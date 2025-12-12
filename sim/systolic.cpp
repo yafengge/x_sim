@@ -15,7 +15,7 @@
 // moved to their respective compilation units: pe.cpp
 // and mem_if.cpp
 
-// Note: the legacy run(A,B) implementation was removed. Use `run_from_memory`
+// Note: the legacy run(A,B) implementation was removed. Use `run`
 // (or `Cube::run` which now wraps the memory-driven path) to execute matrix
 // multiplication using the memory model.
 
@@ -86,21 +86,35 @@ bool SystolicArray::wait_for_prefetch(int m_tile, int n_tile, int k_tile,
     return false;
 }
 
-bool SystolicArray::process_tile_from_memory(std::vector<FIFO>& localA_pool,
+bool SystolicArray::process_tile(std::vector<FIFO>& localA_pool,
                                              std::vector<FIFO>& localB_pool,
                                              int mb, int nb, int m_tile, int n_tile, int k_tile,
                                              uint32_t c_addr, int N) {
-    int mem_lat = memory ? memory->get_latency() : 0;
-    int total_cycles = k_tile + m_tile + n_tile + mem_lat;
-    std::vector<DataType> left_in(m_tile, 0);
-    std::vector<DataType> top_in(n_tile, 0);
+    // Initialize PE state for this tile, execute scheduled cycles, then commit results
+    init_tile_state(m_tile, n_tile);
+    if (!execute_tile_cycles(localA_pool, localB_pool, m_tile, n_tile, k_tile)) return false;
+    commit_tile_results(mb, nb, m_tile, n_tile, c_addr, N);
+    return true;
+}
 
+// Initialize per-PE state (accumulator and activation) for a tile
+void SystolicArray::init_tile_state(int m_tile, int n_tile) {
     for (int i = 0; i < m_tile; ++i) {
         for (int j = 0; j < n_tile; ++j) {
             pes[i][j].set_accumulator(0);
             pes[i][j].set_activation(0);
         }
     }
+}
+
+// Execute the cycle schedule for a tile using provided local FIFOs
+bool SystolicArray::execute_tile_cycles(std::vector<FIFO>& localA_pool,
+                                       std::vector<FIFO>& localB_pool,
+                                       int m_tile, int n_tile, int k_tile) {
+    int mem_lat = memory ? memory->get_latency() : 0;
+    int total_cycles = k_tile + m_tile + n_tile + mem_lat;
+    std::vector<DataType> left_in(m_tile, 0);
+    std::vector<DataType> top_in(n_tile, 0);
 
     for (int t = 0; t < total_cycles; ++t) {
         for (int i = 0; i < m_tile; ++i) left_in[i] = 0;
@@ -145,7 +159,12 @@ bool SystolicArray::process_tile_from_memory(std::vector<FIFO>& localA_pool,
         if (clock) clock->tick();
         stats.compute_cycles++;
     }
+    return true;
+}
 
+// Commit accumulators for a tile into memory at base address c_addr (row stride N)
+void SystolicArray::commit_tile_results(int mb, int nb, int m_tile, int n_tile,
+                                      uint32_t c_addr, int N) {
     for (int i = 0; i < m_tile; ++i) {
         for (int j = 0; j < n_tile; ++j) {
             int idx = (mb + i) * N + (nb + j);
@@ -156,10 +175,9 @@ bool SystolicArray::process_tile_from_memory(std::vector<FIFO>& localA_pool,
             }
         }
     }
-    return true;
 }
 
-bool SystolicArray::run_from_memory(int M, int N, int K,
+bool SystolicArray::run(int M, int N, int K,
                                    uint32_t a_addr, uint32_t b_addr, uint32_t c_addr) {
     // Similar to run(...), but inputs A/B are read from memory at provided
     // base addresses and results are written back into accumulator memory
@@ -167,7 +185,7 @@ bool SystolicArray::run_from_memory(int M, int N, int K,
 
     // Basic checks
     if (K <= 0 || M <= 0 || N <= 0) {
-        std::cerr << "run_from_memory: invalid dimensions" << std::endl;
+        std::cerr << "run: invalid dimensions" << std::endl;
         return false;
     }
 
@@ -203,19 +221,19 @@ bool SystolicArray::run_from_memory(int M, int N, int K,
                                               a_addr, b_addr,
                                               localA_pool, localB_pool,
                                               completionA, completionB, queue_depth)) {
-                    std::cerr << "run_from_memory: prefetch failed for tile\n";
+                    std::cerr << "run: prefetch failed for tile\n";
                     return false;
                 }
 
                 // Wait for prefetch to fill local FIFOs
                 if (!wait_for_prefetch(m_tile, n_tile, k_tile, localA_pool, localB_pool)) {
-                    std::cerr << "run_from_memory: prefetch timeout for tile\n";
+                    std::cerr << "run: prefetch timeout for tile\n";
                     return false;
                 }
 
                 // Process the tile using local FIFOs and commit accumulators into memory
-                if (!process_tile_from_memory(localA_pool, localB_pool, mb, nb, m_tile, n_tile, k_tile, c_addr, N)) {
-                    std::cerr << "run_from_memory: processing tile failed\n";
+                if (!process_tile(localA_pool, localB_pool, mb, nb, m_tile, n_tile, k_tile, c_addr, N)) {
+                    std::cerr << "run: processing tile failed\n";
                     return false;
                 }
 
@@ -233,214 +251,7 @@ bool SystolicArray::run_from_memory(int M, int N, int K,
     return true;
 }
 
-// Helper: prefetch a tile's A/B data into local FIFOs
-void SystolicArray::prefetch_tile(const std::vector<DataType>& A, int A_cols,
-                                  const std::vector<DataType>& B, int B_cols,
-                                  int mb, int nb, int kb, int m_tile, int n_tile, int k_tile,
-                                  std::vector<FIFO>& localA,
-                                  std::vector<FIFO>& localB) {
-    // Issue read requests for all elements this tile needs into per-local completion queues.
-    // We'll later drain completion queues into the local FIFOs.
-    size_t queue_depth = k_tile + 4;
 
-    // Reuse pre-allocated completion queues to避免频繁分配
-    std::vector<std::shared_ptr<std::deque<DataType>>> completionA(m_tile);
-    std::vector<std::shared_ptr<std::deque<DataType>>> completionB(n_tile);
-    for (int i = 0; i < m_tile; ++i) {
-        completionA[i] = completionA_pool[i];
-        completionA[i]->clear();
-    }
-    for (int j = 0; j < n_tile; ++j) {
-        completionB[j] = completionB_pool[j];
-        completionB[j]->clear();
-    }
-
-    // A 行是连续数据，按行突发读取，减少请求数；B 按列仍逐元素读取
-    for (int i = 0; i < m_tile; ++i) {
-        uint32_t addrA = static_cast<uint32_t>((mb + i) * A_cols + kb);
-        while (!memory->read_request(addrA, completionA[i], queue_depth, static_cast<size_t>(k_tile))) {
-            stats.memory_backpressure_cycles++;
-            if (clock) clock->tick();
-        }
-        stats.memory_accesses += static_cast<uint64_t>(k_tile);
-    }
-    for (int kk = 0; kk < k_tile; kk++) {
-        int k_idx = kb + kk;
-        for (int j = 0; j < n_tile; ++j) {
-            uint32_t addrB = static_cast<uint32_t>((k_idx) * B_cols + (nb + j) + static_cast<uint32_t>(A.size()));
-            while (!memory->read_request(addrB, completionB[j], queue_depth)) {
-                stats.memory_backpressure_cycles++;
-                if (clock) clock->tick();
-            }
-            stats.memory_accesses++;
-        }
-    }
-
-    // Wait until each local FIFO has at least k_tile values, by draining completion queues into FIFOs as data arrives
-    int max_wait = 10000;
-    int waited = 0;
-    while (waited < max_wait) {
-        // Drain completion queues into FIFOs
-        for (int i = 0; i < m_tile; ++i) {
-            auto &q = completionA[i];
-            while (q && !q->empty() && !localA[i].full()) {
-                DataType v = q->front(); q->pop_front();
-                localA[i].push(v);
-            }
-        }
-        for (int j = 0; j < n_tile; ++j) {
-            auto &q = completionB[j];
-            while (q && !q->empty() && !localB[j].full()) {
-                DataType v = q->front(); q->pop_front();
-                localB[j].push(v);
-            }
-        }
-
-        bool ready = true;
-        for (int i = 0; i < m_tile; ++i) if (localA[i].count < k_tile) { ready = false; break; }
-        for (int j = 0; j < n_tile && ready; ++j) if (localB[j].count < k_tile) { ready = false; break; }
-        if (ready) break;
-        if (clock) clock->tick();
-        // after a memory cycle, try draining again (in case new completions arrived)
-        for (int i = 0; i < m_tile; ++i) {
-            auto &q = completionA[i];
-            while (q && !q->empty() && !localA[i].full()) {
-                DataType v = q->front(); q->pop_front();
-                localA[i].push(v);
-            }
-        }
-        for (int j = 0; j < n_tile; ++j) {
-            auto &q = completionB[j];
-            while (q && !q->empty() && !localB[j].full()) {
-                DataType v = q->front(); q->pop_front();
-                localB[j].push(v);
-            }
-        }
-
-        waited++;
-    }
-    if (waited >= max_wait) std::cerr << "Warning: tile preload timeout" << std::endl;
-    stats.load_cycles += waited;
-}
-
-// Helper: process a tile using its local FIFOs and commit results into C
-void SystolicArray::process_tile(std::vector<FIFO>& localA,
-                                 std::vector<FIFO>& localB,
-                                 int mb, int nb, int m_tile, int n_tile, int k_tile,
-                                 std::vector<AccType>& C, int N) {
-    int mem_lat = memory ? memory->get_latency() : 0;
-    int total_cycles = k_tile + m_tile + n_tile + mem_lat;
-
-    // Reusable buffers
-    std::vector<DataType> left_in(m_tile, 0);
-    std::vector<DataType> top_in(n_tile, 0);
-
-    // initialize PE state for this tile
-    for (int i = 0; i < m_tile; ++i) {
-        for (int j = 0; j < n_tile; ++j) {
-            pes[i][j].set_accumulator(0);
-            pes[i][j].set_activation(0);
-        }
-    }
-
-    for (int t = 0; t < total_cycles; t++) {
-        // reset inputs
-        for (int i = 0; i < m_tile; ++i) left_in[i] = 0;
-        for (int j = 0; j < n_tile; ++j) top_in[j] = 0;
-
-        // Pop from local FIFOs when appropriate according to injection schedule
-        for (int i = 0; i < m_tile; ++i) {
-            int kk_required = t - i;
-            if (kk_required >= 0 && kk_required < k_tile) {
-                DataType v;
-                if (localA[i].pop(v)) left_in[i] = v;
-            } else {
-                // otherwise feed from neighbor's last activation
-            }
-        }
-        std::vector<char> top_valid(n_tile, 0);
-        for (int j = 0; j < n_tile; ++j) {
-            int kk_required = t - j;
-            if (kk_required >= 0 && kk_required < k_tile) {
-                DataType v;
-                if (localB[j].pop(v)) { top_in[j] = v; top_valid[j] = 1; }
-            }
-        }
-
-        // Prepare inputs for each PE (use current neighbor PE state for inter-PE links)
-        if (cfg_verbose && m_tile <= 4 && n_tile <= 4 && t < 8) {
-            std::cout << "left_in:";
-            for (int ii = 0; ii < m_tile; ++ii) std::cout << " " << left_in[ii];
-            std::cout << "\n";
-            std::cout << "top_in:";
-            for (int jj = 0; jj < n_tile; ++jj) std::cout << " " << top_in[jj];
-            std::cout << "\n";
-        }
-        for (int i = 0; i < m_tile; ++i) {
-            for (int j = 0; j < n_tile; ++j) {
-                DataType act_in = 0;
-                AccType psum_in = 0;
-                DataType weight_in = 0;
-                bool weight_present = false;
-                if (j > 0) act_in = pes[i][j-1].get_activation(); else act_in = left_in[i];
-                // psum is the PE's local accumulator (acc += mac each cycle)
-                psum_in = pes[i][j].get_accumulator();
-                if (i > 0) {
-                    weight_in = pes[i-1][j].get_weight();
-                    weight_present = pes[i-1][j].has_weight();
-                } else {
-                    weight_in = top_in[j];
-                    weight_present = top_valid[j];
-                }
-                pes[i][j].prepare_inputs(act_in, psum_in, weight_in, weight_present);
-                if (pes[i][j].has_weight() && act_in != 0) stats.mac_operations++;
-            }
-        }
-
-        // Debug trace for small tiles: print staged inputs and PE state around tick
-        int trace_limit = cfg_trace_cycles > 0 ? cfg_trace_cycles : 8;
-        bool do_trace = (cfg_verbose && m_tile <= 4 && n_tile <= 4 && t < trace_limit);
-        if (do_trace) {
-            std::cout << "--- Cycle " << t << " before tick ---" << std::endl;
-            for (int i = 0; i < m_tile; ++i) {
-                for (int j = 0; j < n_tile; ++j) {
-                    std::cout << "PE("<<i<<","<<j<<") weight="<< pes[i][j].get_weight()
-                              << " act="<< pes[i][j].get_activation() << " acc="<< pes[i][j].get_accumulator() << "\n";
-                }
-            }
-        }
-
-        // Tick the global clock so memory->cycle, PE ticks, and SystolicArray::cycle run in order
-        if (clock) clock->tick();
-
-        if (do_trace) {
-            std::cout << "--- Cycle " << t << " after tick/commit ---" << std::endl;
-            for (int i = 0; i < m_tile; ++i) {
-                for (int j = 0; j < n_tile; ++j) {
-                    std::cout << "PE("<<i<<","<<j<<") weight="<< pes[i][j].get_weight()
-                              << " act="<< pes[i][j].get_activation() << " acc="<< pes[i][j].get_accumulator() << "\n";
-                }
-            }
-        }
-
-        // After tick, collect outputs from bottom row as results for this cycle
-        // Advance stats for compute cycle (controller's cycle will also increment total_cycles)
-        stats.compute_cycles++;
-    }
-
-    // Commit accumulators from PEs to C using provided row stride N
-    for (int i = 0; i < m_tile; ++i) {
-        for (int j = 0; j < n_tile; ++j) {
-            int idx = (mb + i) * N + (nb + j);
-            AccType val = pes[i][j].get_accumulator();
-            C[idx] += val;
-            // debug: show committed value only when verbose is enabled to avoid huge logs
-            if (cfg_verbose && m_tile <= 4 && n_tile <= 4) {
-                std::cout << "Commit C("<< (mb+i) <<","<<(nb+j)<<") += "<< val <<" -> "<< C[idx] <<"\n";
-            }
-        }
-    }
-}
 
 // PE methods implemented in pe.cpp
 
