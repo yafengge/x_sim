@@ -317,15 +317,14 @@ void SystolicArray::cycle() {
 // PE print_state implemented in pe.cpp
 
 // SystolicArray implementation
-SystolicArray::SystolicArray(const std::string& config_path, p_clock_t external_clock, p_mem_t external_mem)
-    : config_path_(config_path),
-      weight_fifo(new FIFO(16)),
-      activation_fifo(new FIFO(16)),
-      output_fifo(new FIFO(16)),
-      current_state(State::IDLE), current_cycle(0), weight_load_ptr(0),
-      activation_load_ptr(0), result_unload_ptr(0), rows_processed(0),
-      cols_processed(0) {
-    // load and cache configuration values once
+SystolicArray::SystolicArray(p_clock_t external_clock, p_mem_t external_mem)
+        : weight_fifo(new FIFO(16)),
+            activation_fifo(new FIFO(16)),
+            output_fifo(new FIFO(16)),
+            current_state(State::IDLE), current_cycle(0), weight_load_ptr(0),
+            activation_load_ptr(0), result_unload_ptr(0), rows_processed(0),
+            cols_processed(0) {
+        // Load configuration values into cached members
     load_config_cache();
     
     // 初始化PE阵列 (read sizes on-demand from config file)
@@ -484,9 +483,9 @@ void SystolicArray::load_config_cache() {
         cfg_pe_latency = get<int>("cube.pe_latency").value_or(1);
         cfg_verbose = get<bool>("cube.verbose").value_or(false);
         cfg_dataflow_cached = get<Dataflow>("cube.dataflow").value_or(Dataflow::WEIGHT_STATIONARY);
-        if (!err.empty()) {
-            std::cerr << "load_config_cache: failed to load config '" << config_path_ << "': " << err << std::endl;
-        }
+            if (!err.empty()) {
+                std::cerr << "load_config_cache: failed to load config '" << config::get_default_path() << "': " << err << std::endl;
+            }
     }
 }
 

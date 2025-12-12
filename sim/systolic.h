@@ -16,8 +16,7 @@
 // 脉动阵列核心
 class SystolicArray {
 private:
-    // config_path_ is used for on-demand (no-cache) config reads
-    std::string config_path_;
+    // configuration path is read via runtime default; not stored here
     std::vector<std::vector<PE>> pes;
 
     // 输入/输出FIFO（独占所有权，由 SystolicArray 管理）
@@ -123,8 +122,7 @@ private:
                                   uint32_t c_addr, int N);
     
 public:
-    SystolicArray(const std::string& config_path,
-                  p_clock_t external_clock,
+    SystolicArray(p_clock_t external_clock,
                   p_mem_t external_mem = nullptr);
 
     // Configuration helpers are provided by `get<T>()`; callers

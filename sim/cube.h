@@ -12,8 +12,7 @@
 // 并提供对外的 `run` 等便捷接口供测试和工具调用。周期级实现仍留在子模块中。
 class Cube {
 public:
-    explicit Cube(const std::string& config_path,
-                  p_clock_t external_clock,
+    explicit Cube(p_clock_t external_clock,
                   p_mem_t external_mem = nullptr);
 
     // Run using data already loaded into memory. `a_addr`, `b_addr`, and
@@ -21,11 +20,7 @@ public:
     bool run(int M, int N, int K,
                          uint32_t a_addr, uint32_t b_addr, uint32_t c_addr);
 
-    // Returns config path (file used for configuration)
-    const std::string& config_path() const { return config_path_; }
-
 private:
-    std::string config_path_;
     p_clock_t clock_;
     p_mem_t mem_;
     p_systolic_array_t systolic_;

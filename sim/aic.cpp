@@ -47,7 +47,7 @@ void AIC::build(const std::string& case_toml_path, bool force) {
   if (!cube_ || force || model_cfg != config_path_) {
     config_path_ = model_cfg;
     cube_.reset();
-    cube_ = p_cube_t(new Cube(config_path_, clk_, mem_));
+    cube_ = p_cube_t(new Cube(clk_, mem_));
   }
 }
 
