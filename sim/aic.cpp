@@ -19,7 +19,7 @@ void AIC::preload_into_mem(const util::CaseConfig &cfg, const std::vector<DataTy
 
 AIC::AIC(const p_clock_t& clk,
          const p_mem_t& mem)
-  : clk_(clk), mem_(mem) {
+        : clk_(clk), mem_(mem) {
 }
 
 void AIC::build(const std::string& case_toml_path, bool force) {
@@ -38,14 +38,10 @@ void AIC::build(const std::string& case_toml_path, bool force) {
   }
   case_cfg_ = cfg;
 
-  // Determine model config path referenced by the case. If it's empty,
-  // fall back to default "model_cfg.toml" in project root.
-  std::string model_cfg = cfg.model_cfg_path.empty() ? std::string("model_cfg.toml") : cfg.model_cfg_path;
-
   // If cube not yet constructed, or model config changed, or force requested,
-  // create/recreate the Cube instance.
-  if (!cube_ || force || model_cfg != config_path_) {
-    config_path_ = model_cfg;
+  // create/recreate the Cube instance. Use case TOML's referenced model_cfg
+  // or fall back to the default "model_cfg.toml".
+  if (!cube_ || force) {
     cube_.reset();
     cube_ = p_cube_t(new Cube(clk_, mem_));
   }

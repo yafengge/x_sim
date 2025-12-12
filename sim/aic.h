@@ -31,7 +31,7 @@ private:
     void preload_into_mem(const util::CaseConfig &cfg, const std::vector<DataType> &A, const std::vector<DataType> &B);
     // stored case configuration (set by build)
     util::CaseConfig case_cfg_;
-    std::string config_path_;
+
 };
 
 #endif // AIC_H

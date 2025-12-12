@@ -8,8 +8,8 @@
 // 并封装配置加载与运行调用。Cube 自身不包含周期级的内部实现。
 
 Cube::Cube(p_clock_t external_clock, p_mem_t external_mem)
-                                : clock_(external_clock),
-                                    mem_(external_mem) {
+            : clock_(external_clock),
+            mem_(external_mem) {
 
     if (!external_clock) {
         throw std::invalid_argument("Cube requires an external clock; provide via SimTop::build_clk and pass it through");
