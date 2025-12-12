@@ -11,7 +11,7 @@
 #include <gtest/gtest.h>
 #include "util/utils.h"
 #include "util/case_io.h"
-#include "util/verify.h"
+#include "util/utils.h"
 #include <filesystem>
 #include <cstdlib>
 

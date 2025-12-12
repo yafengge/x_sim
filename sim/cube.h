@@ -30,7 +30,7 @@ public:
                          uint32_t a_addr, uint32_t b_addr, uint32_t c_addr);
 
     // Note: result verification has been moved to a standalone utility function
-    // `verify_result(...)` available in `util/verify.h`.
+    // `verify_result(...)` available in `util/utils.h`.
 
     // (Clock and memory access are intentionally not exposed here;
     // callers should hold the handles returned from SimTop::build_*)

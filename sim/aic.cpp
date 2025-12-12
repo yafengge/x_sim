@@ -8,11 +8,11 @@
 
 #include <iostream>
 #include "util/case_io.h"
-#include "util/verify.h"
+#include "util/utils.h"
 #include <fstream>
 #include <filesystem>
 
-// moved print_diffs to util/verify.h/cpp
+// verification helpers moved into util/utils.h/.cpp
 
 // Helper implementations
 

@@ -485,7 +485,7 @@ void SystolicArray::load_config_cache() {
 }
 
 // Forward verify_result to the standalone utility implementation.
-#include "util/verify.h"
+#include "util/utils.h"
 
 // Note: verification is provided by the standalone utility in util/verify.{h,cpp}.
 
