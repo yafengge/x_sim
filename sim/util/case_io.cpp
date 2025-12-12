@@ -141,6 +141,14 @@ bool create_cube_case_config(const std::string &case_toml, CaseConfig &cfg,
     return write_case_toml(cfg);
 }
 
+// Compatibility wrapper for new test callsites that use `create_case_toml`.
+bool create_case_toml(const std::string &case_toml, CaseConfig &cfg,
+                      const std::string &case_dir, const std::string &base_name,
+                      const std::vector<int16_t> &A, const std::vector<int16_t> &B,
+                      int M, int K, int N) {
+    return create_cube_case_config(case_toml, cfg, case_dir, base_name, A, B, M, K, N);
+}
+
 // Read A/B binaries according to an already-populated CaseConfig
 bool read_bins_from_cfg(const CaseConfig &cfg, std::vector<DataType> &A, std::vector<DataType> &B) {
     if (!read_bin<DataType>(cfg.a_path, A)) {

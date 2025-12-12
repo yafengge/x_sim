@@ -48,6 +48,12 @@ bool create_cube_case_config(const std::string &case_toml, CaseConfig &cfg,
                        const std::vector<int16_t> &A, const std::vector<int16_t> &B,
                        int M, int K, int N);
 
+// Backwards-compatible wrapper with the new name used by tests.
+bool create_case_toml(const std::string &case_toml, CaseConfig &cfg,
+                      const std::string &case_dir, const std::string &base_name,
+                      const std::vector<int16_t> &A, const std::vector<int16_t> &B,
+                      int M, int K, int N);
+
 // Read A/B binary files according to a populated CaseConfig. Returns true on success.
 bool read_bins_from_cfg(const CaseConfig &cfg, std::vector<DataType> &A, std::vector<DataType> &B);
 
