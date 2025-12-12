@@ -5,18 +5,23 @@
 #include "types.h"
 #include <fstream>
 
+// 文件：util/case_io.h
+// 说明：提供用于生成/读取单个测试 case 的 TOML 与二进制文件的辅助接口。
+//       - `CaseConfig` 保存 case 的路径、二进制文件位置与矩阵元数据。
+//       - 二进制读写模板位于 `util/utils.h`（header-only）。
+
 namespace util {
 
 struct CaseConfig {
-    std::string case_path; // path to the toml itself
-    std::string a_path;
-    uint32_t a_addr = 0;
-    std::string b_path;
-    uint32_t b_addr = 0;
-    std::string c_golden_path;
-    uint32_t c_addr = 0;
-    std::string c_out_path;
-    // path to the model config (model_cfg.toml) referenced by the case
+    std::string case_path; // case TOML 文件路径
+    std::string a_path;    // A 矩阵二进制路径
+    uint32_t a_addr = 0;   // A 的内存地址偏移
+    std::string b_path;    // B 矩阵二进制路径
+    uint32_t b_addr = 0;   // B 的内存地址偏移
+    std::string c_golden_path; // 参考（golden）C 矩阵文件
+    uint32_t c_addr = 0;   // C 的内存地址偏移
+    std::string c_out_path; // 运行时输出文件（可选）
+    // 引用的 model_cfg.toml 路径（相对或绝对）
     std::string model_cfg_path;
     int M = 0;
     int K = 0;
@@ -29,28 +34,20 @@ struct CaseConfig {
 
 } // namespace util
 
-// Binary IO templates were moved to util/utils.h; implementation files
-// that need binary IO should include util/utils.h instead of util/bin_io.h.
+// 注意：需要二进制 IO 的实现文件请包含 `util/utils.h`，不要包含已弃用的 bin_io.h。
 
 namespace util {
 
-// write a TOML file for the case. This updates `cfg` to contain the
-// absolute paths actually written so callers can reuse them.
+// 将 `cfg` 写为 TOML 文件，写入时会把二进制路径转换为绝对路径并更新 `cfg`。
 bool write_case_toml(CaseConfig &cfg);
-// read an existing TOML file into CaseConfig
+// 从 TOML 读取到 CaseConfig；相对路径按 TOML 所在目录解析。
 bool read_case_toml(const std::string &path, CaseConfig &out);
 
-// write a minimal model config file (model_cfg.toml) used by cases
+// 写入最小的 model_cfg.toml，用于描述 PE 阵列尺寸。
 bool write_config_file(const std::string& path, int array_rows, int array_cols);
 
-// Create case binaries and TOML for a given base name. This will create
-// `case_dir/base_name_A.bin`, `base_name_B.bin`, `base_name_C_golden.bin` and
-// `base_name_C_out.bin`, set addresses and meta in `cfg`, write binaries and
-// the TOML. Returns true on success.
-// Create a cube-focused case configuration and binaries for a given base name.
-// This will create `case_dir/base_name_A.bin`, `base_name_B.bin`,
-// `base_name_C_golden.bin` and `base_name_C_out.bin`, set addresses and meta
-// in `cfg`, write binaries and the TOML. Returns true on success.
+// 依据给定 base_name 在 case_dir 下创建 A/B/C_golden/C_out 的二进制文件并生成 TOML。
+// 成功返回 true。
 bool create_cube_case_config(const std::string &case_toml, CaseConfig &cfg,
                        const std::string &case_dir, const std::string &base_name,
                        const std::vector<int16_t> &A, const std::vector<int16_t> &B,

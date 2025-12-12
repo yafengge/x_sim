@@ -6,17 +6,18 @@
 #include <filesystem>
 #include <fstream>
 
-// Helpers moved from tests/utils.* to util/ to be shared by tests and tools.
-// Verification utilities moved to util/verify.h/.cpp
+// 文件：util/utils.h
+// 说明：通用轻量工具集合，包含：
+// - header-only 二进制读写模板 `write_bin` / `read_bin`（用于序列化矩阵/缓冲区）
+// - 路径查找/解析辅助（`find_existing_path` / `resolve_path`）
+// - 同目录下的验证工具在 `util/verify.h` / `util/verify.cpp` 中实现
 #include "util/verify.h"
 
 namespace util {
 
-// use `util::write_case_toml` / `util::create_cube_case_config` from util/case_io.h
+// 使用示例：`util::write_bin<int16_t>(path, vec)` / `util::read_bin<int16_t>(path, vec)`
 
-// Use template helpers `util::write_bin<int16_t>` / `util::read_bin<int16_t>`
-
-// Header-only binary IO templates (moved from util/bin_io.h)
+// 二进制写入模板：将 vector 原始内存以二进制形式写入文件。
 template<typename T>
 inline bool write_bin(const std::string &path, const std::vector<T> &v) {
 	std::ofstream ofs(path, std::ios::binary);
@@ -25,6 +26,7 @@ inline bool write_bin(const std::string &path, const std::vector<T> &v) {
 	return ofs.good();
 }
 
+// 二进制读取模板：读取整个文件为 vector（要求文件大小为 T 的整数倍）。
 template<typename T>
 inline bool read_bin(const std::string &path, std::vector<T> &v) {
 	std::ifstream ifs(path, std::ios::binary | std::ios::ate);
@@ -38,12 +40,11 @@ inline bool read_bin(const std::string &path, std::vector<T> &v) {
 	return ifs.good();
 }
 
-// Path helpers (moved from util/path.h/.cpp)
+// 路径辅助函数：在当前目录及向上查找 `path`，用于发现相对文件或资源。
 std::optional<std::filesystem::path> find_existing_path(const std::string &path, int max_up = 5);
+// 将给定路径解析为绝对路径（若已是绝对路径则直接返回）。
 std::string resolve_path(const std::string &path);
 
-// Per-case TOML handling is provided by `util::CaseConfig` and the
-// functions in util/case_io.h. Include that header so callers of
-// util/utils.h can refer to `util::CaseConfig` without a separate include.
+// 注意：Per-case TOML 接口在 `util::case_io.h`，此头文件包含该声明以便统一使用。
 
 } // namespace util

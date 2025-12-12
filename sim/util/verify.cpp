@@ -7,8 +7,12 @@
 #include <algorithm>
 #include <cmath>
 
+// 文件：util/verify.cpp
+// 说明：实现 verify 相关的非模板函数（如随机矩阵生成、写入并比对、软件验证逻辑等）。
+
 namespace util {
 
+// 生成一个 rows x cols 的随机 int16 矩阵（行主序），用于测试辅助。
 std::vector<int16_t> generate_random_matrix(int rows, int cols, int min_val, int max_val) {
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -18,11 +22,10 @@ std::vector<int16_t> generate_random_matrix(int rows, int cols, int min_val, int
     return matrix;
 }
 
-
-
+// 将 C 写出（若 cfg.c_out_path 非空），并读取 golden 文件进行比对。
 bool write_and_compare(const CaseConfig &cfg, const std::vector<AccType> &C,
                        const std::vector<DataType> &A, const std::vector<DataType> &B) {
-    // write output file first
+    // 先写输出文件（若请求）
     if (!cfg.c_out_path.empty()) {
         std::string c_out_resolved = util::resolve_path(cfg.c_out_path);
         if (!util::write_bin<AccType>(c_out_resolved, C)) {
@@ -52,10 +55,7 @@ bool write_and_compare(const CaseConfig &cfg, const std::vector<AccType> &C,
     return true;
 }
 
-// compute_diffs and print_diffs are now provided as templates in the header.
-
-// compute_reference moved to header as a wrapper that calls templated matmul.
-
+// 使用软件参考实现对 C 进行验证并打印统计信息（若失败）。
 bool verify_result(const std::vector<DataType>& A, int A_rows, int A_cols,
                    const std::vector<DataType>& B, int B_rows, int B_cols,
                    const std::vector<AccType>& C) {
@@ -70,7 +70,7 @@ bool verify_result(const std::vector<DataType>& A, int A_rows, int A_cols,
     if ((int)B.size() != K * N) return false;
     if ((int)C.size() != M * N) return false;
     
-    // Use compute_diffs + print_diffs to avoid duplicating full-array traversal
+    // 使用模板 compute_diffs + print_diffs 以避免重复遍历
     std::vector<int32_t> C32(C.begin(), C.end());
     std::vector<AccType> ref_acc = compute_reference(A, M, K, B, N);
     std::vector<int32_t> ref32(ref_acc.begin(), ref_acc.end());
@@ -80,7 +80,7 @@ bool verify_result(const std::vector<DataType>& A, int A_rows, int A_cols,
         return true;
     }
 
-    // compute simple stats only over differing indices
+    // 仅对差异索引计算简单统计量
     double max_error = 0;
     double total_error = 0;
     for (size_t idx : diffs_idx) {

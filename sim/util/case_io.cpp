@@ -7,6 +7,10 @@
 #include <cstring>
 #include <filesystem>
 
+// 文件：util/case_io.cpp
+// 说明：实现 case TOML 与二进制文件的创建/读取逻辑。
+// 备注：尽量保持写入的路径为绝对路径，避免运行时依赖于工作目录。
+
 bool write_config_file(const std::string& path, int array_rows, int array_cols) {
     std::ofstream fout(path);
     if (!fout) return false;
@@ -18,37 +22,25 @@ bool write_config_file(const std::string& path, int array_rows, int array_cols) 
 
 namespace util {
 
-// Binary read/write helpers are provided as header-only templates in
-// util/case_io.h. Keep remaining file-local helpers below.
-
-// Flexible read helper removed — callers should call `util::read_bin<DataType>`
-// or use `util::find_existing_path` + `util::read_bin<T>` if flexible
-// resolution is required.
-
-// read_bin<int32_t> is provided in header as template.
-
-// Very small TOML writer for our case format.
+// 将 CaseConfig 写为 TOML，写入时把二进制路径转换为绝对路径并写入文件。
 bool write_case_toml(CaseConfig &cfg) {
-    // Ensure the directory for the TOML exists.
+    // 确保 TOML 所在目录存在
     try {
         std::filesystem::path case_p(cfg.case_path);
         if (case_p.has_parent_path()) std::filesystem::create_directories(case_p.parent_path());
     } catch (...) {
-        // ignore directory creation errors; writing will fail below if necessary
+        // 忽略目录创建错误，后续写入会失败并返回 false
     }
 
     std::ofstream ofs(cfg.case_path);
     if (!ofs) return false;
 
-    // Write absolute paths for the binaries so the TOML is not dependent on
-    // the current working directory when consumed later.
+    // 将二进制路径规范化为绝对路径，便于后续消费
     std::filesystem::path a_p = std::filesystem::absolute(cfg.a_path);
     std::filesystem::path b_p = std::filesystem::absolute(cfg.b_path);
     std::filesystem::path cgold_p = std::filesystem::absolute(cfg.c_golden_path);
     std::filesystem::path cout_p = std::filesystem::absolute(cfg.c_out_path);
 
-    // Update cfg to point to the absolute paths we wrote so callers can use
-    // them directly without guessing about working directories.
     cfg.a_path = a_p.string();
     cfg.b_path = b_p.string();
     cfg.c_golden_path = cgold_p.string();
@@ -56,7 +48,7 @@ bool write_case_toml(CaseConfig &cfg) {
     try {
         cfg.case_path = std::filesystem::absolute(cfg.case_path).string();
     } catch(...) {
-        // ignore
+        // 忽略
     }
     ofs << "# case toml generated\n";
     ofs << "[input.A]\n";
@@ -77,8 +69,7 @@ bool write_case_toml(CaseConfig &cfg) {
     ofs << "K = " << cfg.K << "\n";
     ofs << "N = " << cfg.N << "\n";
     ofs << "endian = \"" << cfg.endian << "\"\n";
-    // model_cfg is stored in its own table so callers can reference the
-    // platform config independently of meta fields.
+    // model_cfg 单独放在一个表中，便于调用方独立引用平台配置
     ofs << "[model_cfg]\n";
     if (!cfg.model_cfg_path.empty()) {
         ofs << "path = \"" << cfg.model_cfg_path << "\"\n";
@@ -88,11 +79,8 @@ bool write_case_toml(CaseConfig &cfg) {
     return ofs.good();
 }
 
-// read_case_toml uses the project's mini TOML parser (parse_toml_file)
-// to extract keys; we do not need ad-hoc line-based parsers here.
-
+// 从 TOML 读取 CaseConfig，解析相对路径时以 TOML 所在目录为基准
 bool read_case_toml(const std::string &path, CaseConfig &out) {
-    // Use the project's mini TOML parser for robust key extraction.
     auto map = parse_toml_file(path);
     if (map.empty()) return false;
     out.case_path = path;
@@ -101,13 +89,11 @@ bool read_case_toml(const std::string &path, CaseConfig &out) {
         if (it == map.end()) return std::string();
         return it->second;
     };
-    // keys are lowercased by parser
     out.a_path = get("input.a.path");
     out.b_path = get("input.b.path");
     out.c_golden_path = get("output.c.golden");
     out.c_out_path = get("output.c.out");
-    // If TOML uses relative paths, resolve them relative to the case TOML's
-    // directory (instead of relying on a build-time PROJECT_SRC_DIR macro).
+
     try {
         std::filesystem::path case_parent;
         try {
@@ -131,17 +117,15 @@ bool read_case_toml(const std::string &path, CaseConfig &out) {
             std::filesystem::path p(out.c_out_path);
             if (p.is_relative()) out.c_out_path = (case_parent / p).string();
         }
-        // resolve model_cfg if present in its own table
         out.model_cfg_path = get("model_cfg.path");
         if (!out.model_cfg_path.empty()) {
             std::filesystem::path p(out.model_cfg_path);
             if (p.is_relative()) out.model_cfg_path = (case_parent / p).string();
         }
-        // make case_path absolute as well
         std::filesystem::path cp(path);
         out.case_path = std::filesystem::absolute(cp).string();
     } catch(...) {
-        // ignore filesystem errors; keep original values if resolution fails
+        // 若解析失败则保留原始值
     }
     auto sa = get("input.a.addr"); if (!sa.empty()) out.a_addr = static_cast<uint32_t>(std::stoul(sa));
     auto sb = get("input.b.addr"); if (!sb.empty()) out.b_addr = static_cast<uint32_t>(std::stoul(sb));
@@ -163,7 +147,7 @@ bool create_cube_case_config(const std::string &case_toml, CaseConfig &cfg,
     try {
         std::filesystem::create_directories(case_dir);
     } catch(...) {
-        // ignore
+        // 忽略创建失败
     }
     cfg.case_path = case_toml;
     cfg.a_path = case_dir + std::string("/") + base_name + std::string("_A.bin");
@@ -174,7 +158,7 @@ bool create_cube_case_config(const std::string &case_toml, CaseConfig &cfg,
     cfg.b_addr = static_cast<uint32_t>(A.size());
     cfg.c_addr = static_cast<uint32_t>(A.size() + B.size());
     cfg.M = M; cfg.K = K; cfg.N = N;
-    // reference the shared model config by default (relative path)
+    // 默认引用共享的 model_cfg.toml（相对路径）
     cfg.model_cfg_path = std::string("model_cfg.toml");
 
     if (!util::write_bin<int16_t>(cfg.a_path, A)) return false;

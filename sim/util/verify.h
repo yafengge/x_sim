@@ -1,4 +1,8 @@
-// Verification utilities header
+// 文件：util/verify.h
+// 说明：验证（verification）相关工具与模板函数。主要接口：
+// - `compute_diffs` / `print_diffs`：差异计算与打印辅助
+// - `matmul` / `compute_reference`：软件参考矩阵乘法，用于比对
+// - `write_and_compare` / `verify_result`：将结果写出并与 golden 比对，或直接进行软件验证
 #pragma once
 #include <vector>
 #include <string>
@@ -9,14 +13,11 @@
 
 namespace util {
 
-// Print simple diffs between two int32 vectors (used by write_and_compare)
-// Forward declaration of templated compute_diffs so print_diffs may call it.
+// 计算两个向量之间不同元素的索引（模板，返回差异索引列表）
 template<typename T>
 std::vector<size_t> compute_diffs(const std::vector<T>& got, const std::vector<T>& expected);
 
-// Generic diffs printer (prints up to a limited number of diffs).
-// If `indices` is provided, only those indices are printed; otherwise
-// the function will compute differences up to `max_print` entries.
+// 打印差异（最多打印 `max_print` 条）。若提供 `indices`，仅打印这些索引。
 template<typename T>
 void print_diffs(const std::vector<T>& got, const std::vector<T>& expected,
                  const std::vector<size_t>* indices = nullptr, size_t max_print = 20) {
@@ -41,22 +42,22 @@ void print_diffs(const std::vector<T>& got, const std::vector<T>& expected,
     if (got.size() != expected.size()) {
         std::cerr << "size mismatch: got=" << got.size() << " golden=" << expected.size() << "\n";
     }
-    // print total differences count (compute by calling compute_diffs)
+    // 打印总差异数
     auto total_diffs = compute_diffs<T>(got, expected);
     std::cerr << "total differences: " << total_diffs.size() << "\n";
 }
 
-// Write C (accumulators) to disk and compare with golden described in CaseConfig.
-// Returns true if results match or no golden provided; false if mismatch or IO error.
+// 将累加器 C 写入磁盘并与 CaseConfig 中描述的 golden 比对。
+// 返回 true 表示匹配或未提供 golden，false 表示不匹配或 IO 错误。
 bool write_and_compare(const CaseConfig &cfg, const std::vector<AccType> &C,
                        const std::vector<DataType> &A, const std::vector<DataType> &B);
 
-// Software verification helper: compute reference and compare with C
+// 直接使用软件参考实现对 C 进行验证，返回是否通过。
 bool verify_result(const std::vector<DataType>& A, int A_rows, int A_cols,
                    const std::vector<DataType>& B, int B_rows, int B_cols,
                    const std::vector<AccType>& C);
 
-// Compute diffs between two vectors of arbitrary integral type; returns indices that differ.
+// 模板：计算 diffs 索引
 template<typename T>
 std::vector<size_t> compute_diffs(const std::vector<T>& got, const std::vector<T>& expected) {
     std::vector<size_t> diffs;
@@ -71,10 +72,7 @@ std::vector<size_t> compute_diffs(const std::vector<T>& got, const std::vector<T
     return diffs;
 }
 
-// Compute software reference matrix multiply: returns MxN AccType vector
-// Generic matrix multiply supporting arbitrary input and output types and
-// leading dimensions (lda, ldb). A is MxK, B is KxN, result is MxN with
-// row-major layout and stride parameters.
+// 通用矩阵乘法模板：支持任意输入/输出类型与行主存布局。
 template<typename OutT, typename InT>
 std::vector<OutT> matmul(const InT* A, int M, int K, int lda,
                          const InT* B, int N, int ldb) {
@@ -94,24 +92,21 @@ std::vector<OutT> matmul(const InT* A, int M, int K, int lda,
     return out;
 }
 
-// Convenience overloads for std::vector inputs assuming tightly-packed rows
+// 便捷重载：接受 std::vector，假设各行紧凑存储。
 template<typename OutT, typename InT>
 std::vector<OutT> matmul(const std::vector<InT>& A, int M, int K,
                          const std::vector<InT>& B, int N) {
     return matmul<OutT, InT>(A.data(), M, K, K, B.data(), N, N);
 }
 
-// Backwards-compatible wrapper used by existing callers
+// 兼容旧调用的包装器：使用 AccType 作为输出类型。
 inline std::vector<AccType> compute_reference(const std::vector<DataType>& A, int M, int K,
                                               const std::vector<DataType>& B, int N) {
     return matmul<AccType, DataType>(A, M, K, B, N);
 }
 
-// Test helper: generate a random int16 matrix (row-major)
+// 测试辅助：生成随机 int16 矩阵（行主序）。定义在 verify.cpp 中实现。
 std::vector<int16_t> generate_random_matrix(int rows, int cols, int min_val = -128, int max_val = 127);
-
-// (report generation removed) emit_report was removed — use compute_diffs
-// and print_diffs for simple diagnostics instead.
 
 } // namespace util
 
