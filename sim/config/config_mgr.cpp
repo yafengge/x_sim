@@ -5,17 +5,24 @@
 #include <cctype>
 #include <mutex>
 
+// 文件：config/config_mgr.cpp
+// 说明：实现配置管理器的缓存与按键读取逻辑。主要职责：
+// - 按文件路径缓存解析结果并根据文件 mtime 刷新。
+// - 提供线程安全的按键读取接口（string/int/bool/dataflow）。
+
 namespace config_mgr {
 
 Manager::Manager() {}
 Manager::~Manager() {}
 
+// 将键归一化为小写形式以保证一致性
 std::string Manager::normalize_key(const std::string &key) {
     std::string k = key;
     std::transform(k.begin(), k.end(), k.begin(), [](unsigned char c){ return std::tolower(c); });
     return k;
 }
 
+// 若缓存中不存在或文件已修改，则从磁盘解析并加载到缓存中
 void Manager::ensure_loaded(const std::string &path) const {
     namespace fs = std::filesystem;
     std::unique_lock<std::shared_mutex> w(lock_);
@@ -32,6 +39,7 @@ void Manager::ensure_loaded(const std::string &path) const {
     }
 }
 
+// 从缓存中按键读取字符串值（成功返回 true）
 bool Manager::get_string(const std::string &path, const std::string &key, std::string &out) const {
     ensure_loaded(path);
     std::shared_lock<std::shared_mutex> r(lock_);
@@ -44,12 +52,14 @@ bool Manager::get_string(const std::string &path, const std::string &key, std::s
     return true;
 }
 
+// 读取并尝试转换为整数
 bool Manager::get_int(const std::string &path, const std::string &key, int &out) const {
     std::string v;
     if (!get_string(path, key, v)) return false;
     try { out = std::stoi(v); return true; } catch(...) { return false; }
 }
 
+// 读取并尝试解析为布尔值（支持 true/false/1/0/yes/no/on/off）
 bool Manager::get_bool(const std::string &path, const std::string &key, bool &out) const {
     std::string v;
     if (!get_string(path, key, v)) return false;
@@ -68,6 +78,7 @@ Manager& mgr() {
     return instance;
 }
 
+// 便捷包装器函数，供其他模块直接调用
 bool get_string_key(const std::string &path, const std::string &dotted_key, std::string &out) {
     return mgr().get_string(path, dotted_key, out);
 }
@@ -80,6 +91,7 @@ bool get_bool_key(const std::string &path, const std::string &dotted_key, bool &
     return mgr().get_bool(path, dotted_key, out);
 }
 
+// 将字符串形式的 dataflow 映射到枚举值
 bool get_dataflow_key(const std::string &path, const std::string &dotted_key, Dataflow &out) {
     std::string v;
     if (!mgr().get_dataflow(path, dotted_key, v)) return false;

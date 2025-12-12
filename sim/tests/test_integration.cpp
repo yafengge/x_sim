@@ -15,6 +15,12 @@
 #include <filesystem>
 #include <cstdlib>
 
+// 文件：tests/test_integration.cpp
+// 说明：集成测试集合（使用 GoogleTest）。
+// 测试采用 case-driven 流程：每个 case 由一个 TOML 描述
+// 输入二进制文件路径与 meta 信息。测试通过调用 `AIC::build(case_toml)`
+// 配置运行环境，再调用 `AIC::start()` 执行仿真并进行结果验证（与 golden 比对）。
+
 // Tests are case-driven: each case TOML describes input binaries and
 // references the platform `model_cfg.toml` via a `[model_cfg]` table.
 // Tests call `aic->build(case_toml)` to configure the Cube (the build step

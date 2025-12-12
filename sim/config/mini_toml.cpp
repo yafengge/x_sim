@@ -4,6 +4,10 @@
 #include <algorithm>
 #include <cctype>
 
+// 文件：config/mini_toml.cpp
+// 说明：极简 TOML 解析器的实现。将配置文件解析为小型的 string->string map，
+// 供 `config_mgr` 与其他模块按键读取配置值。
+
 static inline std::string trim(const std::string &s) {
     auto b = s.find_first_not_of(" \t\r\n");
     if (b == std::string::npos) return "";
@@ -16,6 +20,8 @@ static inline std::string to_lower(std::string s) {
     return s;
 }
 
+// Parse a simple TOML-like file into a flat dotted-key map. Comments starting
+// with '#' are ignored. Section headers ([a] or [a.b]) prefix subsequent keys.
 std::unordered_map<std::string, std::string> parse_toml_file(const std::string& path) {
     std::unordered_map<std::string, std::string> out;
     std::ifstream fin(path);
@@ -40,12 +46,10 @@ std::unordered_map<std::string, std::string> parse_toml_file(const std::string& 
         if (val.size() >= 2 && ((val.front() == '"' && val.back() == '"') || (val.front() == '\'' && val.back() == '\''))) {
             val = val.substr(1, val.size() - 2);
         }
-        // if key contains dots like a.b, keep as-is; if section present, prefix
+        // Compose full dotted key using current section if present
         std::string full = key;
         if (!cur_section.empty()) {
-            // prefix to support nested semantics
-            if (key.find('.') == std::string::npos) full = cur_section + "." + key;
-            else full = cur_section + "." + key;
+            full = cur_section + "." + key;
         }
         out[to_lower(full)] = val;
     }
