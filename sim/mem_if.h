@@ -58,8 +58,11 @@ public:
     bool write_request(uint32_t addr, DataType data);
 
     void cycle();  // 每个周期调用
-    // 直接加载初始内存内容到内存模型（用于将 A/B 放入内存）
-    void load_data(const std::vector<DataType>& data, uint32_t offset = 0);
+    // PV write: 将宿主内存中的数据写入模拟内存。
+    // dataAddr: 指向宿主内存中首元素的地址（按 DataType 计），
+    // size: 元素数量（DataType 个数），
+    // memAddr: 模拟内存中的目标地址（按元素索引计）。
+    void pv_write(uint64_t dataAddr, size_t size, uint64_t memAddr);
     bool has_pending() const { return !pending_requests_.empty(); }
     // Expose configured latency for callers
     int get_latency() const { return latency_; }
@@ -68,8 +71,11 @@ public:
     // region. These are synchronous helpers used by the Cube to commit results.
     void store_acc_direct(uint32_t addr, AccType val);
 
-    // Dump a contiguous range of accumulator values into `out` (returns true on success)
-    bool dump_acc(uint32_t addr, size_t len, std::vector<AccType>& out) const;
+    // PV read: 从模拟累加器内存读取 `size` 个元素到宿主内存。
+    // memAddr: 模拟内存地址（按元素索引）；
+    // size: 元素数量；
+    // dataAddr: 指向宿主内存目标缓冲区的地址（按 AccType 计）。
+    bool pv_read(uint64_t memAddr, size_t size, uint64_t dataAddr) const;
 
 private:
     // Load configuration values (reads the runtime default config path).

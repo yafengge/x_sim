@@ -10,8 +10,8 @@
 
 void AIC::preload_into_mem(const util::CaseConfig &cfg, const std::vector<DataType> &A, const std::vector<DataType> &B) {
   if (mem_) {
-    mem_->load_data(A, cfg.a_addr);
-    mem_->load_data(B, cfg.b_addr);
+    if (!A.empty()) mem_->pv_write(reinterpret_cast<uint64_t>(A.data()), A.size(), cfg.a_addr);
+    if (!B.empty()) mem_->pv_write(reinterpret_cast<uint64_t>(B.data()), B.size(), cfg.b_addr);
   } else {
     LOG_ERROR("AIC::preload_into_mem: mem_ is null; cannot preload A/B");
   }
@@ -73,8 +73,9 @@ bool AIC::start() {
   // Read results back from memory
   size_t c_len = static_cast<size_t>(case_cfg_.M) * static_cast<size_t>(case_cfg_.N);
   std::vector<AccType> Cacc;
-  if (!mem_->dump_acc(case_cfg_.c_addr, c_len, Cacc)) {
-    LOG_ERROR("AIC::start: failed to dump accumulator memory at {}", case_cfg_.c_addr);
+  Cacc.resize(c_len);
+  if (!mem_->pv_read(case_cfg_.c_addr, c_len, reinterpret_cast<uint64_t>(Cacc.data()))) {
+    LOG_ERROR("AIC::start: failed to pv_read accumulator memory at {}", case_cfg_.c_addr);
     return false;
   }
 

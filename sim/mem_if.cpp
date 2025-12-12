@@ -138,13 +138,15 @@ void Mem::cycle() {
     }
 }
 
-void Mem::load_data(const std::vector<DataType>& data, uint32_t offset) {
-    if (offset + data.size() > memory_.size()) {
-        // 如果不足，扩展内存
-        memory_.resize(offset + data.size());
+void Mem::pv_write(uint64_t dataAddr, size_t size, uint64_t memAddr) {
+    // Interpret dataAddr as pointer to DataType elements in host memory.
+    const DataType* src = reinterpret_cast<const DataType*>(static_cast<uintptr_t>(dataAddr));
+    uint64_t offset = memAddr;
+    if (offset + size > memory_.size()) {
+        memory_.resize(static_cast<size_t>(offset + size));
     }
-    for (std::size_t i = 0; i < data.size(); ++i) {
-        memory_[offset + i] = data[i];
+    for (size_t i = 0; i < size; ++i) {
+        memory_[static_cast<size_t>(offset + i)] = src[i];
     }
 }
 
@@ -156,10 +158,11 @@ void Mem::store_acc_direct(uint32_t addr, AccType val) {
     acc_memory_[addr] += val;
 }
 
-bool Mem::dump_acc(uint32_t addr, size_t len, std::vector<AccType>& out) const {
-    if (len == 0) { out.clear(); return true; }
-    if (addr + len > acc_memory_.size()) return false;
-    out.resize(len);
-    for (size_t i = 0; i < len; ++i) out[i] = acc_memory_[addr + i];
+bool Mem::pv_read(uint64_t memAddr, size_t size, uint64_t dataAddr) const {
+    if (size == 0) return true;
+    uint64_t addr = memAddr;
+    if (addr + size > acc_memory_.size()) return false;
+    AccType* dst = reinterpret_cast<AccType*>(static_cast<uintptr_t>(dataAddr));
+    for (size_t i = 0; i < size; ++i) dst[i] = acc_memory_[static_cast<size_t>(addr + i)];
     return true;
 }
