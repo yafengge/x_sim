@@ -30,11 +30,6 @@ public:
     // Access to the constructed Cube object has been removed; use AIC::start
     // to perform runs via the AIC interface.
 
-    // Start a matrix multiply run via the attached Cube. Returns false if Cube not attached.
-    bool start(const std::vector<DataType>& A, int A_rows, int A_cols,
-               const std::vector<DataType>& B, int B_rows, int B_cols,
-               std::vector<AccType>& C);
-
     // Start a run using the previously provided case TOML passed to `build`.
     // The A/B files will be loaded by AIC (from disk) and the resulting C
     // will be written to the configured output path; if a golden exists it

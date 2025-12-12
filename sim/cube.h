@@ -23,9 +23,6 @@ public:
     // (Internal SystolicArray accessors removed — not part of public API.)
 
     // Provide top-level convenience methods that forward to the internal SystolicArray
-    bool run(const std::vector<DataType>& A, int A_rows, int A_cols,
-             const std::vector<DataType>& B, int B_rows, int B_cols,
-             std::vector<AccType>& C);
 
     // Run using data already loaded into memory. `a_addr`, `b_addr`, and
     // `c_addr` are the base addresses where A, B and C (accumulators) reside.

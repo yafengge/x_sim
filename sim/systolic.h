@@ -109,6 +109,25 @@ private:
                       std::vector<FIFO>& localB,
                       int mb, int nb, int m_tile, int n_tile, int k_tile,
                       std::vector<AccType>& C, int N);
+
+    // New helpers to support memory-driven run_from_memory.
+    bool issue_prefetch_for_tile(int mb, int nb, int kb, int m_tile, int n_tile, int k_tile,
+                                 int A_cols, int B_cols,
+                                 uint32_t a_addr, uint32_t b_addr,
+                                 std::vector<FIFO>& localA_pool,
+                                 std::vector<FIFO>& localB_pool,
+                                 std::vector<std::shared_ptr<std::deque<DataType>>>& completionA,
+                                 std::vector<std::shared_ptr<std::deque<DataType>>>& completionB,
+                                 size_t queue_depth);
+
+    bool wait_for_prefetch(int m_tile, int n_tile, int k_tile,
+                           std::vector<FIFO>& localA_pool,
+                           std::vector<FIFO>& localB_pool);
+
+    bool process_tile_from_memory(std::vector<FIFO>& localA_pool,
+                                  std::vector<FIFO>& localB_pool,
+                                  int mb, int nb, int m_tile, int n_tile, int k_tile,
+                                  uint32_t c_addr, int N);
     
 public:
     SystolicArray(const std::string& config_path,
@@ -124,10 +143,7 @@ public:
     // 重置阵列
     void reset();
     
-    // 执行矩阵乘法 C = A * B
-    bool run(const std::vector<DataType>& A, int A_rows, int A_cols,
-             const std::vector<DataType>& B, int B_rows, int B_cols,
-             std::vector<AccType>& C);
+    // (旧接口已移除) 矩阵乘法请使用 `run_from_memory` 或者通过 `Cube::run` 入口
 
     // Run the array using data already present in `memory` at the provided
     // addresses. The array will issue read requests to `memory` and commit

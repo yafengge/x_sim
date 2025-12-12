@@ -184,15 +184,7 @@ void AIC::build(const std::string& case_toml_path, bool force) {
   }
 }
 
-bool AIC::start(const std::vector<DataType>& A, int A_rows, int A_cols,
-                const std::vector<DataType>& B, int B_rows, int B_cols,
-                std::vector<AccType>& C) {
-  if (!cube_) {
-    std::cerr << "AIC::start: cube not constructed; call build(config_path) first" << std::endl;
-    return false;
-  }
-  return cube_->run(A, A_rows, A_cols, B, B_rows, B_cols, C);
-}
+// (removed) legacy overload AIC::start(A,B) — use AIC::start() with case TOML
 
 bool AIC::start() {
   if (case_cfg_.case_path.empty()) {

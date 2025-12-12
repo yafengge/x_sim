@@ -34,11 +34,7 @@ void Cube::config(const std::string &path) {
     // Additional cube-level validation or config reads could be placed here.
 }
 
-bool Cube::run(const std::vector<DataType>& A, int A_rows, int A_cols,
-               const std::vector<DataType>& B, int B_rows, int B_cols,
-               std::vector<AccType>& C) {
-    return systolic_->run(A, A_rows, A_cols, B, B_rows, B_cols, C);
-}
+// `run` convenience wrapper removed; prefer `run_from_memory` for memory-driven execution.
 
 bool Cube::run_from_memory(int M, int N, int K,
                           uint32_t a_addr, uint32_t b_addr, uint32_t c_addr) {
