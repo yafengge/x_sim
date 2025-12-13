@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "cppdbg",
+      "request": "launch",
+
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "cwd": "/home/steven/x_sim/sim",
+      "program": "/home/steven/x_sim/sim/build/tests/x_sim_tests",
+      "args": [--gtest_filter=Integration.SmallMatrix],
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    }
+  ]
+}
